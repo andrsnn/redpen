@@ -828,7 +828,13 @@ init();
     byId('chead').textContent = variantMode ? 'Ask for a variant' : 'Add a comment';
     inp.placeholder = variantMode ? 'What should this variant try?' : 'What should change?';
     ctx.textContent = label(target.slide) + (variantMode ? ' · new variant' : (target.quote ? ' · “' + target.quote + '”' : ' · general comment'));
-    inp.value = ''; dposZ = null; dlg.showModal(); placeDlg(); inp.focus({ preventScroll: true });
+    inp.value = ''; dposZ = null;
+    // On touch screens, focusing a text box makes the browser zoom or scroll to it, which throws away the user's pinch zoom.
+    // So the box opens without focus (the dialog itself takes it) and the user taps the text area to type.
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    dlg.tabIndex = -1; dlg.setAttribute('autofocus', '');
+    dlg.showModal(); placeDlg();
+    if (!coarse) inp.focus({ preventScroll: true }); else { try { dlg.focus({ preventScroll: true }); } catch (e) {} }
   }
   window.requestVariant = () => openDlg(true);
   window.requestComment = () => openDlg();

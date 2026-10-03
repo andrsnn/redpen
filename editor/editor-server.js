@@ -14,7 +14,10 @@ const EDITOR_HTML = path.join(__dirname, 'editor.html');
 if (!fs.existsSync(path.join(ROOT, 'slides'))) { console.error('No slides/ folder in ' + ROOT); process.exit(1); }
 const HOST = '127.0.0.1';
 const review = require('../review/review-api.js').create({ deck: ROOT, port: PORT });
-const okPostOrigin = (req) => { const h = req.headers.host || ''; if (!new RegExp('^(localhost|127\\.0\\.0\\.1):' + PORT + '$').test(h)) return false; const o = req.headers.origin; return !o || new RegExp('^http://(localhost|127\\.0\\.0\\.1):' + PORT + '$').test(o); };
+// EDITOR_ALLOWED_HOSTS=name.ts.net (comma list) lets a tailnet / reverse-proxy host post too.
+const EXTRA_HOSTS = (process.env.EDITOR_ALLOWED_HOSTS || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+const hostOk = (h) => { h = (h || '').toLowerCase(); if (new RegExp('^(localhost|127\.0\.0\.1):' + PORT + '$').test(h)) return true; return EXTRA_HOSTS.some((x) => h === x || h === x + ':' + PORT); };
+const okPostOrigin = (req) => { if (!hostOk(req.headers.host)) return false; const o = req.headers.origin; if (!o) return true; try { return hostOk(new URL(o).host); } catch (e) { return false; } };
 
 // ---- export (PNG / PDF) via the repo-root puppeteer + pdf-lib ----
 // puppeteer + pdf-lib: nearest node_modules walking up from this file
@@ -200,7 +203,7 @@ const server = http.createServer((req, res) => {
   let url;
   try { url = new URL(req.url, 'http://' + HOST); } catch { return send(res, 400, 'bad url'); }
   const p = decodeURIComponent(url.pathname);
-  if (req.method === 'POST' && !okPostOrigin(req)) return send(res, 403, 'forbidden');
+  if (req.method === 'POST' && !okPostOrigin(req)) { return send(res, 403, 'forbidden'); }
   if (review.handle(req, res, p)) return;   // comments, replies, status, dictation, live events
 
   if (req.method === 'GET' && (p === '/' || p === '/index.html' || p === '/editor.html')) {

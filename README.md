@@ -93,6 +93,8 @@ Put `OPENAI_API_KEY=...` in `.env.local` at the repo root. The key stays on the 
 
 The editor listens on `127.0.0.1` only and rejects cross-site POSTs. Do not expose it to a network without adding authentication.
 
+**Phone or tablet.** The editor works on touch screens: Slides and Comments open as drawers, press and hold on a slide to comment, swipe left or right to change slides, and the comment box stays on screen when you pinch-zoom. To open it from your phone over a private network such as Tailscale, proxy the port (for example `tailscale serve --https=8137 http://127.0.0.1:8137`) and start the server with `EDITOR_ALLOWED_HOSTS=your-machine.your-tailnet.ts.net` so comments from that host are accepted. Only do this on a network you trust.
+
 ## License
 
 MIT

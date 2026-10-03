@@ -103,11 +103,27 @@
   #cdlg h2{cursor:move;user-select:none}
   #cdlg h2::after{content:' · drag to move';font-size:11px;font-weight:400;color:#8ea6c4}
   #cdlg p{color:#b9cde4;font-size:13px;max-height:80px;overflow:auto;margin:6px 0 10px}
-  #cdlg textarea{width:100%;min-height:120px;resize:vertical;background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:10px;font:inherit}
+  #cdlg textarea{width:100%;min-height:120px;resize:vertical;background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:10px;font:inherit;font-size:16px}
   #cdlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 
   /* ── help footer ─────────────────────────── */
   #help{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:11px;color:#5f6878;pointer-events:none}
+
+  /* ── small screens (phone / foldable): drawers instead of side panes ── */
+  .navbtn{display:none}
+  @media (max-width:1100px){
+    #topbar{overflow-x:auto;gap:8px;padding:0 10px;-webkit-overflow-scrolling:touch}
+    #topbar>*{flex:none}
+    #curfile,#vbar,#savedFlash{display:none}
+    .navbtn{display:inline-block}
+    #sidebar{position:fixed;top:52px;bottom:0;left:0;width:min(280px,80vw);z-index:20;transform:translateX(-102%);transition:transform .18s;box-shadow:6px 0 24px rgba(0,0,0,.5)}
+    body.show-side #sidebar{transform:none}
+    #cpanel{position:fixed;top:52px;bottom:0;right:0;width:min(380px,88vw);z-index:20;transform:translateX(102%);transition:transform .18s;box-shadow:-6px 0 24px rgba(0,0,0,.5)}
+    body.show-cmt #cpanel{transform:none}
+    #notes{height:96px}
+    #help{display:none}
+  }
+  @media (max-height:520px){ #notes{display:none} }
 </style>
 </head>
 <body>
@@ -118,6 +134,8 @@
   <div id="curfile">no slide loaded</div>
   <div id="vbar"></div>
   <div class="spacer"></div>
+  <button class="navbtn" id="navSide">Slides</button>
+  <button class="navbtn" id="navCmt">Comments</button>
   <button id="zoomBtn" title="Toggle fit / 100%">Fit</button>
   <button id="btnPrev" title="Previous slide (←)">←</button>
   <button id="btnNext" title="Next slide (→)">→</button>
@@ -285,7 +303,7 @@ function injectOverride() {
     'html,body{margin:0;padding:0;background:#f4f5f7!important}' +
     '.slide{box-shadow:none!important}' +
     '.slide > *{user-select:none;cursor:grab}' +
-    '.slide > * .no-touch, [contenteditable]{user-select:text!important}' +
+    'body{-webkit-touch-callout:none}' + '.slide > * .no-touch, [contenteditable]{user-select:text!important}' +
     '[contenteditable]{cursor:text!important;outline:none!important}' +
     '[contenteditable]:focus{outline:2px solid #3563e3!important;outline-offset:3px!important;border-radius:4px}' +
     '.__sel{outline:2px dashed #3563e3!important;outline-offset:3px}' +
@@ -318,6 +336,7 @@ function setupDoc() {
     if (S.editing) return;                       // let text selection work
     const obj = e.target.closest ? e.target.closest('.slide > *') : null;
     if (!obj) return;
+    if (e.pointerType === 'touch' && S.selected !== obj) return;   // touch: only drag what is already selected, so swiping between slides never moves things
     const cs = d.defaultView.getComputedStyle(obj);
     if (cs.position !== 'absolute') return;      // only move absolutely-positioned objects
     S.drag = { obj, sx: e.clientX, sy: e.clientY,
@@ -328,6 +347,27 @@ function setupDoc() {
     // compatibility click/dblclick events we rely on for select + edit.
     // Text selection during drags is already blocked by the user-select:none override.
   }, true);
+  swipeAttach(d);
+  /* touch: press and hold on the slide to leave a comment on what's under the finger */
+  let lp = null;
+  const lpCancel = () => { if (lp) { clearTimeout(lp.t); lp = null; } };
+  d.addEventListener('pointerdown', (e) => {
+    lpCancel();
+    if (e.pointerType !== 'touch' || S.editing) return;
+    const x = e.clientX, y = e.clientY, tg = e.target;
+    lp = { x, y, t: setTimeout(() => {
+      lp = null;
+      const obj = tg.closest ? tg.closest('.slide > *') : null;
+      if (obj) select(obj);
+      if (S.drag) { S.drag = null; }
+      if (navigator.vibrate) navigator.vibrate(30);
+      window.requestComment && window.requestComment();
+    }, 550) };
+  }, true);
+  d.addEventListener('pointermove', (e) => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) lpCancel(); });
+  d.addEventListener('pointerup', lpCancel);
+  d.addEventListener('pointercancel', lpCancel);
+  d.addEventListener('contextmenu', (e) => { if (e.pointerType === 'touch' || lp) e.preventDefault(); });
   d.addEventListener('pointermove', onMove);
   d.addEventListener('pointerup', onDragEnd);
   d.addEventListener('pointercancel', onDragEnd);
@@ -575,6 +615,17 @@ $('zoomBtn').onclick = (e) => {
 };
 window.addEventListener('resize', () => { if (S.fit) fit(); });
 
+/* drawers on small screens */
+function toggleDrawer(cls, other) {
+  document.body.classList.remove(other);
+  document.body.classList.toggle(cls);
+}
+$('navSide').onclick = (e) => { toggleDrawer('show-side', 'show-cmt'); e.currentTarget.blur(); };
+$('navCmt').onclick = (e) => { toggleDrawer('show-cmt', 'show-side'); e.currentTarget.blur(); };
+$('canvas').addEventListener('pointerdown', () => document.body.classList.remove('show-side', 'show-cmt'));
+$('slideList').addEventListener('click', () => document.body.classList.remove('show-side'));
+
+
 /* ───────────────────────── save ───────────────────────── */
 function setDirty(v) {
   if (S.current) {
@@ -631,6 +682,34 @@ $('btnPng').onclick = (e) => exportFile(e.currentTarget, '/api/export/png?file='
 $('btnPngs').onclick = (e) => exportFile(e.currentTarget, '/api/export/pngs', 'Zipping PNGs…');
 $('btnPptx').onclick = (e) => exportFile(e.currentTarget, '/api/export/pptx', 'Building PPTX…');
 $('btnPdf').onclick = (e) => exportFile(e.currentTarget, '/api/export/pdf?scope=main', 'Building PDF…');
+/* swipe left / right between slides on touch screens. Ignored during pinch zoom (two fingers),
+   while zoomed in (the swipe is a pan), while editing, and after a long-press comment. */
+const swipe = { ids: new Set(), id: null, x: 0, y: 0, lx: 0, ly: 0, t: 0, ok: false };
+function swipeAttach(target) {
+  // Touch events, not pointer events: the browser sends pointercancel as soon as it starts a pan,
+  // but touchmove keeps coming. No touch-action is set and nothing is cancelled, so pinch zoom is untouched.
+  const zoomed = () => window.visualViewport && window.visualViewport.scale > 1.02;
+  target.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) { swipe.ok = false; return; }
+    const t = e.touches[0];
+    swipe.ok = !S.editing && !zoomed();
+    swipe.x = swipe.lx = t.screenX; swipe.y = swipe.ly = t.screenY; swipe.t = Date.now();
+  }, { capture: true, passive: true });
+  target.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) { swipe.ok = false; return; }
+    const t = e.touches[0]; swipe.lx = t.screenX; swipe.ly = t.screenY;
+  }, { capture: true, passive: true });
+  const finish = (e) => {
+    if (e.touches.length > 0 || !swipe.ok) return;           // another finger still down, or already ruled out
+    swipe.ok = false;
+    if (zoomed()) return;
+    const dx = swipe.lx - swipe.x, dy = swipe.ly - swipe.y;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy) && Date.now() - swipe.t < 900 && !(S.drag && S.drag.moved) && !$('cdlg').open) stepSlide(dx < 0 ? 1 : -1);
+  };
+  target.addEventListener('touchend', finish, { capture: true, passive: true });
+  target.addEventListener('touchcancel', finish, { capture: true, passive: true });
+}
+swipeAttach(document);
 $('btnPrev').onclick = (e) => { stepSlide(-1); e.currentTarget.blur(); };
 $('btnNext').onclick = (e) => { stepSlide(1); e.currentTarget.blur(); };
 $('btnUndo').onclick = (e) => { undo(); e.currentTarget.blur(); };
@@ -664,16 +743,35 @@ init();
   }
   let target = { slide: '', quote: '' };
   /* the comment box can be dragged so the slide stays visible; it remembers where you left it */
-  let dpos = null;
+  let dpos = null, dposZ = null;
+  const vvz = () => (window.visualViewport && window.visualViewport.scale > 1.02) ? window.visualViewport : null;
   function placeDlg() {
-    const w = dlg.offsetWidth, h = dlg.offsetHeight;
-    const p = dpos || { x: window.innerWidth - w - 380, y: window.innerHeight - h - 24 };
-    dlg.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, p.x)) + 'px';
-    dlg.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, p.y)) + 'px';
+    const vv = vvz(), z = vv ? vv.scale : 1;
+    // pinch-zoomed: show the box inside what is on screen, at normal on-screen size (scaled down by the zoom factor)
+    dlg.style.transformOrigin = 'top left';
+    dlg.style.transform = vv ? 'scale(' + (1 / z) + ')' : '';
+    const w = dlg.offsetWidth / z, h = dlg.offsetHeight / z;
+    let x, y, minX = 8, minY = 8, maxX = window.innerWidth - w - 8, maxY = window.innerHeight - h - 8;
+    if (vv) {
+      minX = vv.offsetLeft + 4; minY = vv.offsetTop + 4;
+      maxX = vv.offsetLeft + vv.width - w - 4; maxY = vv.offsetTop + vv.height - h - 4;
+      const p = dposZ || { x: vv.offsetLeft + (vv.width - w) / 2, y: vv.offsetTop + 8 };
+      x = p.x; y = p.y;
+    } else {
+      const p = dpos || (window.innerWidth < 1100 ? { x: (window.innerWidth - w) / 2, y: 60 } : { x: window.innerWidth - w - 380, y: window.innerHeight - h - 24 });
+      x = p.x; y = p.y;
+    }
+    dlg.style.left = Math.max(minX, Math.min(maxX, x)) + 'px';
+    dlg.style.top = Math.max(minY, Math.min(maxY, y)) + 'px';
+  }
+  if (window.visualViewport) {
+    const re = () => { if (dlg.open) placeDlg(); };
+    window.visualViewport.addEventListener('resize', re);
+    window.visualViewport.addEventListener('scroll', re);
   }
   byId('chead').addEventListener('pointerdown', (e) => {
     const r = dlg.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
-    const mv = (m) => { dpos = { x: m.clientX - ox, y: m.clientY - oy }; placeDlg(); };
+    const mv = (m) => { const pp = { x: m.clientX - ox, y: m.clientY - oy }; if (vvz()) dposZ = pp; else dpos = pp; placeDlg(); };
     const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); e.preventDefault();
   });
@@ -687,9 +785,10 @@ init();
     byId('chead').textContent = variantMode ? 'Ask for a variant' : 'Add a comment';
     inp.placeholder = variantMode ? 'What should this variant try?' : 'What should change?';
     ctx.textContent = label(target.slide) + (variantMode ? ' · new variant' : (target.quote ? ' · “' + target.quote + '”' : ' · general comment'));
-    inp.value = ''; dlg.showModal(); placeDlg(); inp.focus();
+    inp.value = ''; dposZ = null; dlg.showModal(); placeDlg(); inp.focus({ preventScroll: true });
   }
   window.requestVariant = () => openDlg(true);
+  window.requestComment = () => openDlg();
   const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
   const onKey = (e) => {
     if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(); }

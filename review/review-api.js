@@ -30,11 +30,14 @@ exports.create = function create({ deck, port }) {
   const KEY_FILE = process.env.REVIEW_OPENAI_ENV || path.join(__dirname, '..', '.env.local');
   const openaiKey = () => { const m = rd(KEY_FILE, '').match(/^(?:export\s+)?OPENAI_API_KEY=(.+)$/m); return m ? m[1].trim().replace(/^["']|["']$/g, '') : (process.env.OPENAI_API_KEY || ''); };
 
+  // EDITOR_ALLOWED_HOSTS=name.ts.net (comma list) lets a tailnet / reverse-proxy host post too.
+  const extra = (process.env.EDITOR_ALLOWED_HOSTS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+  const hostOk = h => { h = (h || '').toLowerCase(); return new RegExp('^(localhost|127\.0\.0\.1):' + port + '$').test(h) || extra.some(x => h === x || h === x + ':' + port); };
   const okOrigin = q => {
-    const h = q.headers.host || '';
-    if (!new RegExp('^(localhost|127\\.0\\.0\\.1):' + port + '$').test(h)) return false;
+    if (!hostOk(q.headers.host)) return false;
     const o = q.headers.origin;
-    return !o || new RegExp('^http://(localhost|127\\.0\\.0\\.1):' + port + '$').test(o);
+    if (!o) return true;
+    try { return hostOk(new URL(o).host); } catch (e) { return false; }
   };
   const body = (q, max = 24 * 1024 * 1024) => new Promise((res, rej) => {
     const a = []; let n = 0;

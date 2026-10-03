@@ -174,7 +174,7 @@
       <div class="hint">styles apply to the text you're editing</div>
     </div>
     <div id="stageWrap"><iframe id="frame" width="1280" height="720" tabindex="-1"></iframe></div>
-    <div id="help">click = select · drag = move · double-click = edit text · Enter / Esc = done · Shift+Enter = newline · Del = delete element · Ctrl+Z = undo · Ctrl+S = save</div>
+    <div id="help">click = select · drag = move · double-click = edit text · Enter / Esc = done · ⌘⌥M = comment while editing · Shift+Enter = newline · Del = delete element · Ctrl+Z = undo · Ctrl+S = save</div>
   </div>
   <div id="notes"><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
   </div>
@@ -416,6 +416,7 @@ function setupDoc() {
   d.addEventListener('input', () => { if (S.editing) setDirty(); });  // dirty the moment typing starts
 
   d.addEventListener('keydown', (e) => {
+    dropStaleEdit();
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !S.editing) { e.preventDefault(); undo(); return; }
     if (S.editing) {
@@ -459,6 +460,9 @@ function select(obj) {
 
 /* ───────────────────────── text editing ───────────────────────── */
 function enterEdit(el) {
+  if (!el || el.namespaceURI !== 'http://www.w3.org/1999/xhtml' || (el.closest && el.closest('svg'))) {   // SVG shapes are not editable text: select the whole object instead
+    const o = el && el.closest ? el.closest('.slide > *') : null; if (o) select(o); return;
+  }
   if (S.editing && S.editing !== el) commitEdit();
   try { el.contentEditable = 'plaintext-only'; } catch { el.contentEditable = 'true'; }
   el.classList.add('__editing');
@@ -469,6 +473,7 @@ function enterEdit(el) {
   const sel = frame.contentWindow.getSelection(); sel.removeAllRanges(); sel.addRange(r);
   showStylebar(true);
 }
+function dropStaleEdit() { if (S.editing && (!S.editing.isConnected || (S.editing.closest && S.editing.closest('svg')) || S.editing.isContentEditable === false)) commitEdit(); }
 function commitEdit() {
   if (!S.editing) return;
   const el = S.editing;
@@ -561,6 +566,7 @@ function stepKey(e) {
   return true;
 }
 window.addEventListener('keydown', (e) => {
+  dropStaleEdit();
   const t = e.target && e.target.tagName;
   if (!S.selected && t !== 'INPUT' && t !== 'SELECT' && t !== 'TEXTAREA' && stepKey(e)) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
@@ -820,9 +826,10 @@ init();
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); e.preventDefault();
   });
   let variantMode = false;
-  function openDlg(variant) {
+  function openDlg(variant, force) {
     if (dlg.open || !S.current) return;
-    if (S.editing) return;
+    dropStaleEdit();
+    if (S.editing && !force) return;
     variantMode = variant === true;
     target = capture();
     if (variantMode) { target.slide = mainOf(S.current) ? base(mainOf(S.current)) : target.slide; target.quote = ''; }
@@ -843,6 +850,7 @@ init();
   window.requestComment = () => openDlg();
   const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
   const onKey = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'KeyM' || e.key.toLowerCase() === 'm') && !dlg.open) { e.preventDefault(); e.stopPropagation(); openDlg(false, true); return; }
     if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(); }
     if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(true); }
   };

@@ -80,6 +80,7 @@ For each comment the agent makes the change and replies with `python3 review/res
 |---|---|
 | C | Comment on the selected text or element |
 | V | Ask for a variant of this page |
+| ⌘⌥M (Ctrl+Alt+M) | Comment while editing text, when plain C would type a letter |
 | ← → | Flip between versions of a page (between pages if it has no variants) |
 | Alt + ← → | Previous or next page |
 | ⌘↵ | Send the comment |

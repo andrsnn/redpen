@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 — A request goes out and a response comes back</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#e6e8eb}
+  body{display:flex;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;flex:none;background:#f4f5f7;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15);color:#232a33}
+  .abs{position:absolute}
+  .eyebrow{left:64px;top:64px;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8a929e}
+  .title{left:62px;top:98px;width:1152px;font-size:40px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  .flow{left:64px;bottom:28px;width:1152px;font-size:11px;color:#8a929e;letter-spacing:.02em}
+  .pageno{left:1218px;top:683px;font-size:11px;font-weight:500;letter-spacing:.18em}
+  .b{--c:#3563e3;--gh:#dde6fb}.g{--c:#3f9168;--gh:#d9ebe0}.v{--c:#6b4fd8;--gh:#e4def9}.o{--c:#c47a1f;--gh:#f3e4cf}
+  .k{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+  .card{background:#fff;border:1px solid #dfe3e8;border-top:5px solid var(--c);border-radius:14px;padding:18px 20px}
+  .card .h{margin-top:6px;font-size:26px;font-weight:800}
+  .card .d{margin-top:8px;font-size:18px;line-height:1.35;color:#3d4550}
+  .box{width:300px;height:150px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:28px;font-weight:800;border:2px solid var(--c);background:var(--gh);color:var(--c)}
+  .box small{font-size:16px;font-weight:500;color:#3d4550;margin-top:6px}
+  .arrow{font-size:17px;font-weight:700;color:#232a33}
+  .arrow div{height:3px;background:#232a33;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="abs eyebrow">The basics</div>
+  <div class="abs title">A request goes out and a response comes back</div>
+  <div class="abs box b" style="left:80px;top:250px">Browser<small>asks</small></div>
+  <div class="abs box g" style="left:900px;top:250px">Server<small>answers</small></div>
+  <div class="abs arrow" style="left:400px;top:262px;width:480px">GET /courses/42 &nbsp; (the request)<div></div></div>
+  <div class="abs arrow" style="left:400px;top:340px;width:480px"><div></div>200 OK + the page &nbsp; (the response)</div>
+  <div class="abs" style="left:64px;top:460px;width:1152px;font-size:22px;line-height:1.4;color:#3d4550">A request names a <b>method</b> (what to do) and a <b>path</b> (what to do it to). A response carries a <b>status code</b> and usually a body.</div>
+  <div class="abs flow">01 · Title → 03 · Status codes</div>
+  <div class="abs pageno">02</div>
+</div>
+<script type="text/x-notes">
+- Walk the arrows left to right. Ask: what would change if the method were POST instead of GET?
+- A method says what to do. A path says what to do it to.
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif">
+  <rect width="900" height="200" rx="16" fill="#f6f7f9"/>
+  <g font-size="15" font-weight="700" fill="#222" text-anchor="middle">
+    <rect x="25" y="30" width="160" height="140" rx="12" fill="#fff" stroke="#d5d9df" stroke-width="2"/><rect x="60" y="52" width="90" height="56" rx="6" fill="#dde6fb"/><text x="105" y="140">Talks</text><text x="105" y="158" font-size="12" font-weight="400" fill="#555">slides, pitches</text>
+    <rect x="195" y="30" width="160" height="140" rx="12" fill="#fff" stroke="#d5d9df" stroke-width="2"/><path d="M235 100 V58 q35 -10 35 0 V100 M270 58 q35 -10 35 0 V100 q-35 -10 -70 0z" fill="#d9ebe0" stroke="#3f9168" stroke-width="2"/><text x="275" y="140">Learning</text><text x="275" y="158" font-size="12" font-weight="400" fill="#555">one page per idea</text>
+    <rect x="365" y="30" width="160" height="140" rx="12" fill="#fff" stroke="#d5d9df" stroke-width="2"/><circle cx="445" cy="80" r="26" fill="#e4def9"/><text x="445" y="88" font-size="24" fill="#6b4fd8">?</text><text x="445" y="140">Exam study</text><text x="445" y="158" font-size="12" font-weight="400" fill="#555">notes and quizzes</text>
+    <rect x="535" y="30" width="160" height="140" rx="12" fill="#fff" stroke="#d5d9df" stroke-width="2"/><rect x="565" y="52" width="46" height="56" rx="5" fill="#f3e4cf"/><rect x="619" y="52" width="46" height="56" rx="5" fill="#f3e4cf" stroke="#c47a1f"/><text x="615" y="140">Design mocks</text><text x="615" y="158" font-size="12" font-weight="400" fill="#555">layouts as variants</text>
+    <rect x="705" y="30" width="170" height="140" rx="12" fill="#fff" stroke="#d5d9df" stroke-width="2"/><rect x="745" y="52" width="90" height="56" rx="6" fill="#fff" stroke="#e5484d" stroke-width="2"/><path d="M755 70 h70 M755 84 h50" stroke="#e5484d" stroke-width="3"/><text x="790" y="140">Doc review</text><text x="790" y="158" font-size="12" font-weight="400" fill="#555">comment on sentences</text>
+  </g>
+</svg>

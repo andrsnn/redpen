@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 alt — Request and response as a letter</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#e6e8eb}
+  body{display:flex;justify-content:center;padding:24px;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;flex:none;background:#f4f5f7;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15);color:#232a33}
+  .abs{position:absolute}
+  .eyebrow{left:64px;top:64px;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8a929e}
+  .title{left:62px;top:98px;width:1152px;font-size:40px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+  .flow{left:64px;bottom:28px;width:1152px;font-size:11px;color:#8a929e;letter-spacing:.02em}
+  .pageno{left:1218px;top:683px;font-size:11px;font-weight:500;letter-spacing:.18em}
+  .b{--c:#3563e3;--gh:#dde6fb}.g{--c:#3f9168;--gh:#d9ebe0}.v{--c:#6b4fd8;--gh:#e4def9}.o{--c:#c47a1f;--gh:#f3e4cf}
+  .k{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+  .card{background:#fff;border:1px solid #dfe3e8;border-top:5px solid var(--c);border-radius:14px;padding:18px 20px}
+  .card .h{margin-top:6px;font-size:26px;font-weight:800}
+  .card .d{margin-top:8px;font-size:18px;line-height:1.35;color:#3d4550}
+  .l{width:430px;height:260px;border-radius:12px;background:#fff;border:2px solid var(--c);padding:22px 26px;font-size:22px;line-height:1.5}
+  .l b{color:var(--c)}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="abs eyebrow">The basics, as a letter</div>
+  <div class="abs title">Think of a request as a letter and a response as the reply</div>
+  <div class="abs l b" style="left:64px;top:230px"><b>Letter</b><br>To: /courses/42<br>Please: GET (send me this)</div>
+  <div class="abs l g" style="left:786px;top:230px"><b>Reply</b><br>Status: 200 OK<br>Inside: the course page</div>
+  <div class="abs flow">Alternate for 02 · Request and response</div>
+  <div class="abs pageno">02</div>
+</div>
+<script type="text/x-notes">
+- Use this version if the audience has never seen a request before. The method is the "please", the path is the address.
+</script>
+</body>
+</html>

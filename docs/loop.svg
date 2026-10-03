@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" font-family="-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#555"/></marker></defs>
+  <rect width="900" height="300" rx="16" fill="#f6f7f9"/>
+  <rect x="40" y="70" width="260" height="160" rx="14" fill="#fff" stroke="#d5d9df" stroke-width="2"/>
+  <text x="170" y="105" text-anchor="middle" font-size="18" font-weight="700" fill="#222">You, in the browser</text>
+  <text x="170" y="140" text-anchor="middle" font-size="15" fill="#555">Edit and drag</text>
+  <text x="170" y="165" text-anchor="middle" font-size="15" fill="#555">Press C to comment</text>
+  <text x="170" y="190" text-anchor="middle" font-size="15" fill="#555">Press V for a variant</text>
+  <rect x="600" y="70" width="260" height="160" rx="14" fill="#fff" stroke="#d5d9df" stroke-width="2"/>
+  <text x="730" y="105" text-anchor="middle" font-size="18" font-weight="700" fill="#222">Your AI agent</text>
+  <text x="730" y="140" text-anchor="middle" font-size="15" fill="#555">Reads the comment</text>
+  <text x="730" y="165" text-anchor="middle" font-size="15" fill="#555">Edits the page file</text>
+  <text x="730" y="190" text-anchor="middle" font-size="15" fill="#555">Replies in the thread</text>
+  <path d="M305 120 H595" stroke="#e5484d" stroke-width="3" fill="none" marker-end="url(#a)"/>
+  <text x="450" y="108" text-anchor="middle" font-size="14" font-weight="700" fill="#e5484d">comment or variant request</text>
+  <path d="M595 185 H305" stroke="#2f9e6e" stroke-width="3" fill="none" marker-end="url(#a)"/>
+  <text x="450" y="212" text-anchor="middle" font-size="14" font-weight="700" fill="#2f9e6e">page reloads, reply appears</text>
+</svg>

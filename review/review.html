@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__ · review</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:auto}
+body{background:#0f1114;font-family:"Inter Tight",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;color:#dbe7f6}
+#bar{position:sticky;top:0;z-index:20;background:#0b1727;color:#dbe7f6;padding:10px 18px;display:flex;gap:12px;align-items:center;margin-right:360px}
+#bar b{font-size:14px}#bar .st{margin-left:auto;font-size:12px;color:#b8cbe3}
+button{font:inherit;cursor:pointer}
+#bar button{border:1px solid #6685ae;background:#203752;color:#f0f6ff;border-radius:6px;padding:6px 10px;font-size:13px;font-weight:600}
+#main{margin-right:360px;padding:22px 0 80px;display:flex;flex-direction:column;align-items:center;gap:28px}
+.wrap{width:1280px;transform-origin:top center}
+.tag{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.tag .y{display:none;background:#ffd666;color:#4a3a00;border-radius:999px;padding:1px 9px;font-size:11px}
+.wrap.review iframe{outline:4px solid #ffcd3c}.wrap.review .tag .y{display:inline-block}
+.wrap.flash iframe{outline:4px solid #3563e3}
+iframe{width:1280px;height:720px;border:0;display:block;box-shadow:0 8px 32px rgba(0,0,0,.5);background:#1b1d21}
+#panel{position:fixed;top:0;right:0;bottom:0;width:360px;background:#0f1d30;border-left:1px solid #405777;color:#dbe7f6;overflow:auto;padding:14px;font-size:13.5px;line-height:1.4}
+#panel h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#9fb6d3;margin-bottom:8px}
+#panel button{border:1px solid #526b8d;background:#18304c;color:#eaf2fc;border-radius:6px;padding:4px 8px;font-size:12px}
+#panel button:hover{background:#27487a}
+.sum{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#9fb6d3;margin-bottom:8px}.sum .y{color:#ffe08a;font-weight:700}
+.row{display:flex;gap:6px;align-items:center;margin:6px 0;font-size:12px;color:#9fb6d3}.row label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.th{border:1px solid #38506f;background:#14263c;border-radius:10px;padding:10px;margin:9px 0;cursor:pointer}
+.th:hover{border-color:#7fa6e0}.th.active{border-color:#8db9f7;background:#1b3454}
+.th[data-status=changed]{border-left:4px solid #ffcd3c}.th[data-status=addressed]{opacity:.65}
+.hd{display:flex;gap:6px;align-items:center;font-size:12px;color:#9fb6d3}.hd .sec{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{border-radius:999px;padding:1px 7px;font-weight:700;font-size:11px}
+.chip.open{background:#1f3f73;color:#bcd6ff}.chip.changed{background:#6b560f;color:#ffe08a}.chip.addressed{background:#2c3a52;color:#b8c9e2}
+.cq{color:#9fb6d3;border-left:2px solid #5b7fb3;padding-left:7px;margin:6px 0 4px;font-size:12px;max-height:3.9em;overflow:hidden}
+.m{margin-top:7px;padding:7px 9px;border-radius:8px;background:#0d1b2c}.m.claude{background:#1b2a40}.m.change{background:#3a3010;color:#ffe9a8}
+.m .mh{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8ea6c4;margin-bottom:2px}.m.change .mh{color:#ffd666}
+.m .mt{white-space:pre-wrap;color:#f3f8ff}.m.change .mt{color:#ffe9a8}
+.more{color:#9fb6d3;font-size:12px;margin-top:6px}
+textarea.r{width:100%;margin-top:8px;resize:none;background:#0d1b2c;color:#f0f6ff;border:1px solid #526b8d;border-radius:7px;padding:7px 8px;font:inherit;min-height:34px}
+textarea.r:focus{outline:2px solid #8db9f7;min-height:64px}
+.cb{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+dialog{width:min(540px,calc(100vw - 30px));border:1px solid #6685ae;border-radius:11px;background:#17283d;color:#edf2fa;padding:20px}
+dialog::backdrop{background:#0009}
+dialog p{color:#b9cde4;font-size:13px;max-height:80px;overflow:auto;margin:6px 0 10px}
+dialog textarea{width:100%;min-height:120px;resize:vertical;background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:10px;font:inherit}
+dialog .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+dialog button{border:1px solid #6685ae;background:#203752;color:#f0f6ff;border-radius:6px;padding:7px 10px}
+</style></head><body>
+<div id="bar"><b>__TITLE__</b><button id="addc">Add comment (C)</button><span class="st" id="st">Select text on a slide, then press C. Or press C for a general comment on the slide in view.</span></div>
+<div id="main"></div>
+<div id="panel"></div>
+<dialog id="dlg"><form id="frm"><h2 style="font-size:16px">Add a comment</h2><p id="ctx"></p><textarea id="inp" required placeholder="What should change?"></textarea><div class="acts"><button type="button" id="dmic" data-mic="dialog" style="margin-right:auto">🎤 Dictate</button><button type="button" id="cancel">Cancel</button><button type="submit">Save comment (⌘↵)</button></div></form></dialog>
+<script>
+const $=id=>document.getElementById(id);
+const main=$('main'),panel=$('panel'),dlg=$('dlg'),inp=$('inp'),ctx=$('ctx'),st=$('st');
+let comments=[],files=[],deckTitle='',target={slide:'',quote:''},current='',hideRes=true,activeId=null,rec=null;
+const drafts={},EXP='deckreview-expanded-'+location.port;
+const expanded=new Set((()=>{try{return JSON.parse(localStorage.getItem(EXP)||'[]')}catch(e){return[]}})());
+const saveExp=()=>{try{localStorage.setItem(EXP,JSON.stringify([...expanded]))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const label=f=>(f||'General').replace(/\.html$/,'').replace(/^(\d+)-/,'$1 · ').replace(/-/g,' ');
+const fmt=t=>t?new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+const hdr={'Content-Type':'application/json'};
+function say(s){st.textContent=s}
+// ---- slides
+async function build(){
+  const d=await (await fetch('/list',{cache:'no-store'})).json();files=d.files;deckTitle=d.title;
+  const y=window.scrollY;main.innerHTML='';
+  files.forEach(f=>{const w=document.createElement('div');w.className='wrap';w.id='s-'+f;
+    w.innerHTML='<div class="tag">'+esc(label(f))+'<span class="y">changed: review</span></div>';
+    const fr=document.createElement('iframe');fr.src='/slides/'+f+'?t='+Date.now();fr.dataset.slide=f;
+    fr.onload=()=>hook(fr);w.appendChild(fr);main.appendChild(w)});
+  fit();window.scrollTo(0,y);render();watch();
+}
+function hook(fr){try{const d=fr.contentDocument;d.body.style.padding='0';d.body.style.margin='0';d.documentElement.style.background='#0f1114';
+  d.addEventListener('mouseup',()=>setTimeout(()=>{const t=fr.contentWindow.getSelection().toString().trim();if(t){target={slide:fr.dataset.slide,quote:t.slice(0,500)};say('Selected on '+label(fr.dataset.slide)+'. Press C to comment.')}},10));
+  d.addEventListener('keydown',e=>{if((e.key==='c'||e.key==='C')&&!e.metaKey&&!e.ctrlKey){e.preventDefault();openDlg()}})}catch(e){}}
+function fit(){const k=Math.min(1,(innerWidth-360-40)/1280);document.querySelectorAll('.wrap').forEach(w=>{w.style.zoom=k})}
+addEventListener('resize',fit);
+function watch(){if(!window.IntersectionObserver)return;const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting&&e.intersectionRatio>0.5)current=e.target.id.slice(2)})},{threshold:[0.5]});document.querySelectorAll('.wrap').forEach(w=>io.observe(w))}
+function goSlide(f){const w=$('s-'+f);if(!w)return;w.scrollIntoView({block:'start'});w.classList.remove('flash');void w.offsetWidth;w.classList.add('flash');setTimeout(()=>w.classList.remove('flash'),1800)}
+// ---- comment dialog
+function openDlg(){if(dlg.open)return;if(!target.slide)target={slide:current,quote:''};ctx.textContent=(target.slide?label(target.slide):'General')+(target.quote?' · “'+target.quote+'”':' · general comment');inp.value='';dlg.showModal();inp.focus()}
+$('addc').onclick=()=>{if(!window.getSelection().toString().trim()&&!target.quote)target={slide:current,quote:''};openDlg()};
+$('cancel').onclick=()=>dlg.close();
+dlg.addEventListener('close',()=>{target={slide:'',quote:''}});
+document.addEventListener('keydown',e=>{if((e.key==='c'||e.key==='C')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!dlg.open&&!/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)){e.preventDefault();openDlg()}});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();$('frm').requestSubmit()}});
+$('frm').addEventListener('submit',e=>{e.preventDefault();const body=inp.value.trim();if(!body)return;
+  const c={id:'comment-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),slide:target.slide,quote:target.quote,comment:body,at:new Date().toISOString()};dlg.close();say('Sending…');
+  fetch('/comment',{method:'POST',headers:hdr,body:JSON.stringify(c)}).then(r=>{if(!r.ok)throw 0;say('Comment sent to Claude');activeId=c.id;load()}).catch(()=>say('Could not reach the review server'))});
+// ---- panel
+function render(){
+  const keep=panel.scrollTop,foc=document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.reply?{id:document.activeElement.dataset.reply,s:document.activeElement.selectionStart}:null;
+  const cnt=k=>comments.filter(c=>c.status===k).length,nrev=cnt('changed'),nopen=cnt('open'),ndone=cnt('addressed');
+  let h='<h2>Comments</h2><div class="sum">'+(nrev?'<span class="y">'+nrev+' to review</span>':'')+(nopen?'<span>'+nopen+' waiting on Claude</span>':'')+(ndone?'<span>'+ndone+' resolved</span>':'')+'</div>'
+   +'<div class="row"><button data-a="exp">Expand all</button><button data-a="col">Collapse all</button>'+(nrev?'<button data-a="prev">↑</button><button data-a="next">↓</button>':'')+'<label><input type="checkbox" id="hr" '+(hideRes?'checked':'')+'> hide resolved</label></div>';
+  const order=comments.slice().sort((a,b)=>files.indexOf(a.slide)-files.indexOf(b.slide)||String(a.at).localeCompare(String(b.at))).filter(c=>!(hideRes&&c.status==='addressed'));
+  if(!order.length)h+='<div class="more">'+(comments.length?'All threads resolved.':'No comments yet. Select text on a slide and press C.')+'</div>';
+  order.forEach(c=>{const open=expanded.has(c.id),res=c.status==='addressed',lab={open:'Waiting on Claude',changed:'To review',addressed:'Resolved'}[c.status];
+    const msgs=[{from:'you',text:c.comment,at:c.at},...(c.thread||[])];
+    h+='<div class="th'+(c.id===activeId?' active':'')+'" data-id="'+c.id+'" data-status="'+c.status+'"><div class="hd"><button data-a="tg">'+(open?'▾':'▸')+'</button><span class="chip '+c.status+'">'+lab+'</span><span class="sec">'+esc(label(c.slide))+'</span>'+(res?'<button data-a="reopen">Reopen</button>':'<button data-a="resolve">Resolve</button>')+'</div>'+(c.quote?'<div class="cq">'+esc(c.quote)+'</div>':'');
+    if(open){msgs.forEach(m=>{h+='<div class="m '+(m.from==='claude'?'claude'+(m.kind==='change'?' change':''):'')+'"><div class="mh">'+(m.from==='claude'?(m.kind==='change'?'Claude · changed':'Claude'):'You')+' · '+fmt(m.at)+'</div><div class="mt">'+esc(m.text)+'</div></div>'});
+      h+='<textarea class="r" data-reply="'+c.id+'" rows="1" placeholder="Reply… (⌘↵ to send)"></textarea><div class="cb"><button data-a="send">Reply</button><button data-a="mic" data-mic="'+c.id+'">🎤 Dictate</button>'+(c.slide?'<button data-a="go">Go to slide</button>':'')+'</div>'}
+    else{const l=msgs[msgs.length-1],t=(l.text||'').replace(/\s+/g,' ');h+='<div class="more"><b>'+(l.from==='claude'?'Claude':'You')+':</b> '+esc(t.length>110?t.slice(0,110)+'…':t)+' · '+msgs.length+' message'+(msgs.length>1?'s':'')+'</div>'}
+    h+='</div>'});
+  panel.innerHTML=h;panel.scrollTop=keep;
+  panel.querySelectorAll('textarea.r').forEach(t=>{if(drafts[t.dataset.reply])t.value=drafts[t.dataset.reply]});
+  if(foc){const t=panel.querySelector('textarea.r[data-reply="'+foc.id+'"]');if(t){t.focus({preventScroll:true});try{t.setSelectionRange(foc.s,foc.s)}catch(e){}}}
+  // yellow outline on slides with a thread to review
+  document.querySelectorAll('.wrap').forEach(w=>w.classList.remove('review'));
+  comments.filter(c=>c.status==='changed').forEach(c=>{const ss=(c.slides&&c.slides.length)?c.slides:[c.slide];ss.forEach(f=>$('s-'+f)?.classList.add('review'))});
+  setMic();
+}
+const post=(id,status)=>fetch('/status',{method:'POST',headers:hdr,body:JSON.stringify({id,status})}).then(load);
+function sendReply(id,text){text=(text||'').trim();if(!text)return;say('Sending reply…');return fetch('/reply',{method:'POST',headers:hdr,body:JSON.stringify({id,text,at:new Date().toISOString()})}).then(r=>{if(!r.ok)throw 0;delete drafts[id];expanded.add(id);saveExp();say('Reply sent to Claude');return load()}).catch(()=>say('Could not send reply'))}
+panel.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.reply)drafts[t.dataset.reply]=t.value});
+panel.addEventListener('keydown',e=>{const t=e.target;if(t.dataset&&t.dataset.reply&&e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();sendReply(t.dataset.reply,t.value)}});
+panel.addEventListener('click',e=>{
+  if(e.target.id==='hr'){hideRes=e.target.checked;render();return}
+  const a=e.target.closest('[data-a]')?.dataset.a;
+  if(a==='exp'){comments.forEach(c=>expanded.add(c.id));saveExp();render();return}
+  if(a==='col'){expanded.clear();saveExp();render();return}
+  if(a==='prev'||a==='next'){const rv=comments.filter(c=>c.status==='changed');if(!rv.length)return;const i=rv.findIndex(c=>c.id===activeId);const j=a==='next'?(i+1)%rv.length:(i<=0?rv.length-1:i-1);activeId=rv[j].id;expanded.add(activeId);saveExp();render();const s=(rv[j].slides&&rv[j].slides[0])||rv[j].slide;if(s)goSlide(s);return}
+  const item=e.target.closest('.th');if(!item)return;const id=item.dataset.id,c=comments.find(x=>x.id===id);if(!c)return;
+  if(a==='tg'){expanded.has(id)?expanded.delete(id):expanded.add(id);saveExp();render();return}
+  if(a==='resolve'){post(id,'addressed');return}
+  if(a==='reopen'){expanded.add(id);saveExp();post(id,'open');return}
+  if(a==='send'){sendReply(id,item.querySelector('textarea').value);return}
+  if(a==='mic'){toggleMic(id,()=>panel.querySelector('textarea.r[data-reply="'+id+'"]'));return}
+  if(a==='go'){const s=(c.slides&&c.slides[0])||c.slide;if(s)goSlide(s);return}
+  if(e.target.tagName==='TEXTAREA')return;
+  activeId=id;expanded.add(id);saveExp();render();const s=(c.slides&&c.slides[0])||c.slide;if(s)goSlide(s)});
+// ---- dictation
+function setMic(){document.querySelectorAll('[data-mic]').forEach(b=>{const mine=rec&&rec.key===b.dataset.mic;b.textContent=mine?(rec.busy?'… Transcribing':'⏹ Stop recording'):'🎤 Dictate';b.disabled=!!(rec&&!mine);b.style.background=mine&&!rec.busy?'#8a2b2b':''})}
+async function toggleMic(key,getTa){
+  if(rec){if(rec.key===key&&!rec.busy&&rec.mr)rec.mr.stop();return}
+  let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){say('Mic blocked: allow microphone access for localhost');return}
+  const mime=['audio/webm;codecs=opus','audio/mp4'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||'';
+  const mr=new MediaRecorder(stream,mime?{mimeType:mime}:{}),chunks=[];
+  mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());rec={key,busy:true};setMic();say('Transcribing…');
+    try{const blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});const r=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':blob.type},body:blob});if(!r.ok)throw 0;const {text}=await r.json();const ta=getTa();if(text&&ta){ta.value=(ta.value?ta.value.replace(/\s*$/,' '):'')+text.trim();if(ta.dataset.reply)drafts[ta.dataset.reply]=ta.value;ta.focus()}say(text?'Dictation added. Edit if needed, then send':'Heard nothing')}catch(e){say('Transcription failed (server needs a valid OpenAI key)')}
+    rec=null;setMic()};
+  rec={key,mr};mr.start();setMic();say('Recording… click Stop when done')}
+$('dmic').onclick=()=>toggleMic('dialog',()=>inp);
+// ---- data and hot reload
+function load(){return fetch('/comments',{cache:'no-store'}).then(r=>r.json()).then(d=>{comments=d;render()}).catch(()=>{panel.innerHTML='<div class="more">Review server not running.</div>'})}
+let pendingBuild=false;
+const busy=()=>dlg.open||!!rec||Object.values(drafts).some(v=>v&&v.trim());
+try{const es=new EventSource('/events');es.onmessage=m=>{
+  if(m.data==='comments')load();
+  else if(m.data.startsWith('slides:')){const {changed,structure}=JSON.parse(m.data.slice(7));
+    if(structure){build();return}
+    changed.forEach(f=>{const fr=document.querySelector('iframe[data-slide="'+f+'"]');if(fr)fr.src='/slides/'+f+'?t='+Date.now()});say('Updated: '+changed.map(label).join(', '))}}}catch(e){}
+build().then(load);
+</script></body></html>

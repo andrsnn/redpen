@@ -1,0 +1,17 @@
+{
+  "name": "redpen",
+  "version": "0.1.0",
+  "description": "Iterate on a project with an AI agent: edit pages visually, comment in place, and get changes back live.",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "new": "node tools/new-deck.js",
+    "edit": "node editor/editor-server.js",
+    "render": "node tools/render.js"
+  },
+  "optionalDependencies": {
+    "pdf-lib": "^1.17.1",
+    "pptxgenjs": "^3.12.0",
+    "puppeteer": "^22.0.0"
+  }
+}

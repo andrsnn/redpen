@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='20' rx='3' fill='%23232833'/%3E%3Crect x='8' y='12' width='16' height='3' rx='1.5' fill='%238ab4f8'/%3E%3Crect x='8' y='18' width='10' height='3' rx='1.5' fill='%23e8eaee'/%3E%3C/svg%3E">
+<title>Slide Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:"Inter Tight",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:#14161a;color:#e8eaee;display:flex;flex-direction:column;overflow:hidden}
+
+  /* ── top bar ─────────────────────────────── */
+  #topbar{height:52px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;background:#1b1e24;border-bottom:1px solid #2a2e37}
+  #topbar .logo{font-weight:800;font-size:14px;letter-spacing:.02em;white-space:nowrap}
+  #topbar .logo span{color:#8ab4f8}
+  #curfile{font-size:12.5px;color:#9aa3b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+  #dirty{width:8px;height:8px;border-radius:50%;background:#e8a33d;flex:none;display:none}
+  #dirty.on{display:block}
+  .spacer{flex:1}
+  button{font-family:inherit;font-size:12.5px;font-weight:600;border:1px solid #343a46;background:#232833;color:#dfe3ea;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+  button:hover{background:#2c3341}
+  button:disabled{opacity:.4;cursor:default}
+  #btnSave{background:#2f6b4f;border-color:#3d8463;color:#eafff2}
+  #btnSave:hover{background:#37805c}
+  #btnSave.dirty{background:#b07818;border-color:#c98f2a;color:#fff8ec}
+  #vbar{display:flex;gap:6px;align-items:center;margin-left:14px}
+  #vbar .vl{font-size:12.5px;color:#cdd3dd;min-width:150px;text-align:center;white-space:nowrap}
+  #vbar .vl b{color:#9fb4ff}
+  #vbar button{padding:5px 10px}
+  #vbar .use{background:#1f3d30;border-color:#2f6b50;color:#bfe6d2}
+  #savedFlash{font-size:12px;color:#7fd6a4;opacity:0;transition:opacity .3s;white-space:nowrap}
+  #savedFlash.on{opacity:1}
+  #zoomBtn{min-width:56px}
+
+  /* ── layout ──────────────────────────────── */
+  #main{flex:1;display:flex;min-height:0}
+  #sidebar{width:262px;flex:none;background:#181b21;border-right:1px solid #2a2e37;display:flex;flex-direction:column}
+  #sideTitle{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6d7686;padding:14px 16px 8px}
+  #slideList{flex:1;overflow-y:auto;padding:0 8px 16px}
+  .grp{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#525b6b;padding:12px 8px 6px}
+  .item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;font-size:12.5px;color:#c6ccd8;line-height:1.3}
+  .item:hover{background:#22262f}
+  .item.active{background:#2b3242;color:#fff}
+  .item .no{font-size:10.5px;font-weight:700;color:#7d8697;width:20px;flex:none;text-align:right}
+  .item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .dot{width:7px;height:7px;border-radius:50%;background:#e8a33d;flex:none;display:none}
+  .item .mv{display:none;gap:2px;flex:none}.item:hover .mv{display:flex}
+  .item .mv button{padding:1px 6px;font-size:10px;border-radius:5px}
+  .item.dirty .dot{display:block}
+  #canvas{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:
+    radial-gradient(1200px 600px at 50% 0,#1d2129 0%,#14161a 70%)}
+  #center{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  #center #canvas{min-height:0}
+  #notes{flex:none;height:132px;background:#181b21;border-top:1px solid #2a2e37;padding:8px 14px 10px;display:flex;flex-direction:column;gap:5px}
+  #notes .nh{display:flex;gap:10px;align-items:baseline;font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6d7686}
+  #notes .nh i{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none;color:#5f6878;font-size:11.5px}
+  #notesTa{flex:1;resize:none;width:100%;background:#0f1114;color:#dfe4ec;border:1px solid #2a2e37;border-radius:8px;padding:8px 10px;font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  #notesTa:focus{outline:2px solid #3563e3;border-color:transparent}
+  #stageWrap{position:relative}
+  #frame{display:block;border:0;background:#f4f5f7;transform-origin:top left}
+
+  /* ── style bar ───────────────────────────── */
+  #stylebar{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:10px;
+    background:#22262f;border:1px solid #343a46;border-radius:12px;padding:8px 14px;box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:5}
+  #stylebar.on{display:flex}
+  #stylebar select{font-family:inherit;font-size:12px;font-weight:600;background:#171a20;color:#e8eaee;border:1px solid #343a46;border-radius:7px;padding:5px 8px}
+  #stylebar .sw{width:20px;height:20px;border-radius:6px;cursor:pointer;border:2px solid transparent}
+  #stylebar .sw:hover{transform:scale(1.12)}
+  #stylebar .sw.on{border-color:#fff}
+  #stylebar .hint{font-size:11px;color:#8a93a3;max-width:130px;line-height:1.35}
+  #stylebar .sep{width:1px;height:22px;background:#343a46}
+
+
+  /* ── comments panel (review lives inside the editor) ── */
+  #cpanel{width:360px;flex:none;background:#0f1d30;border-left:1px solid #405777;color:#dbe7f6;overflow:auto;padding:14px;font-size:13.5px;line-height:1.4}
+  #cpanel h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#9fb6d3;margin-bottom:8px}
+  #cpanel button{font-size:12px;font-weight:600;border:1px solid #526b8d;background:#18304c;color:#eaf2fc;border-radius:6px;padding:4px 8px}
+  #cpanel button:hover{background:#27487a}
+  #cpanel .sum{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#9fb6d3;margin-bottom:8px}#cpanel .sum .y{color:#ffe08a;font-weight:700}
+  #cpanel .row{display:flex;gap:6px;align-items:center;margin:6px 0;font-size:12px;color:#9fb6d3;flex-wrap:wrap}#cpanel .row label{display:flex;gap:5px;align-items:center;cursor:pointer}
+  #cpanel .st{font-size:11.5px;color:#b8cbe3;margin:2px 0 8px;min-height:15px}
+  #cpanel .th{border:1px solid #38506f;background:#14263c;border-radius:10px;padding:10px;margin:9px 0;cursor:pointer}
+  #cpanel .th:hover{border-color:#7fa6e0}#cpanel .th.active{border-color:#8db9f7;background:#1b3454}
+  #cpanel .th[data-status=changed]{border-left:4px solid #ffcd3c}#cpanel .th[data-status=addressed]{opacity:.65}
+  #cpanel .hd{display:flex;gap:6px;align-items:center;font-size:12px;color:#9fb6d3}#cpanel .hd .sec{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #cpanel .chip{border-radius:999px;padding:1px 7px;font-weight:700;font-size:11px}
+  #cpanel .chip.open{background:#1f3f73;color:#bcd6ff}#cpanel .chip.changed{background:#6b560f;color:#ffe08a}#cpanel .chip.addressed{background:#2c3a52;color:#b8c9e2}
+  #cpanel .cq{color:#9fb6d3;border-left:2px solid #5b7fb3;padding-left:7px;margin:6px 0 4px;font-size:12px;max-height:3.9em;overflow:hidden}
+  #cpanel .m{margin-top:7px;padding:7px 9px;border-radius:8px;background:#0d1b2c}#cpanel .m.claude{background:#1b2a40}#cpanel .m.change{background:#3a3010;color:#ffe9a8}
+  #cpanel .m .mh{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8ea6c4;margin-bottom:2px}#cpanel .m.change .mh{color:#ffd666}
+  #cpanel .m .mt{white-space:pre-wrap;color:#f3f8ff}#cpanel .m.change .mt{color:#ffe9a8}
+  #cpanel .more{color:#9fb6d3;font-size:12px;margin-top:6px}
+  #cpanel textarea.r{width:100%;margin-top:8px;resize:none;background:#0d1b2c;color:#f0f6ff;border:1px solid #526b8d;border-radius:7px;padding:7px 8px;font:inherit;min-height:34px}
+  #cpanel textarea.r:focus{outline:2px solid #8db9f7;min-height:64px}
+  #cpanel .cb{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .item.review{box-shadow:inset 3px 0 0 #ffcd3c}
+  #cdlg{width:min(540px,calc(100vw - 30px));border:1px solid #6685ae;border-radius:11px;background:#17283d;color:#edf2fa;padding:20px}
+  #cdlg::backdrop{background:#0009}
+  #cdlg p{color:#b9cde4;font-size:13px;max-height:80px;overflow:auto;margin:6px 0 10px}
+  #cdlg textarea{width:100%;min-height:120px;resize:vertical;background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:10px;font:inherit}
+  #cdlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+
+  /* ── help footer ─────────────────────────── */
+  #help{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:11px;color:#5f6878;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo">Slide <span>Editor</span></div>
+  <div id="dirty" title="Unsaved changes"></div>
+  <div id="curfile">no slide loaded</div>
+  <div id="vbar"></div>
+  <div class="spacer"></div>
+  <button id="zoomBtn" title="Toggle fit / 100%">Fit</button>
+  <button id="btnPrev" title="Previous slide (←)">←</button>
+  <button id="btnNext" title="Next slide (→)">→</button>
+  <button id="btnUndo" title="Undo last change (Ctrl+Z)">Undo</button>
+  <button id="btnAdd" title="Insert a new text box">+ Text</button>
+  <button id="btnDel" title="Delete selected element (Del)">Delete</button>
+  <button id="btnPng" title="Download this slide as PNG">PNG</button>
+  <button id="btnPngs" title="Download every main-deck slide as PNGs (zip)">All PNGs</button>
+  <button id="btnPptx" title="Download the main deck as PowerPoint (one image per slide)">PPTX</button>
+  <button id="btnPdf" title="Download the main deck as one PDF">PDF</button>
+  <button id="btnSave" title="Save to file (Ctrl+S)">Save</button>
+  <div id="savedFlash">Saved ✓</div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div id="sideTitle">Main deck</div>
+    <div id="slideList"></div>
+  </div>
+  <div id="center">
+  <div id="canvas">
+    <div id="stylebar">
+      <select id="szSel" title="Font size">
+        <option value="">size</option>
+        <option>11</option><option>13</option><option>15</option><option>18</option>
+        <option>22</option><option>26</option><option>32</option><option>40</option>
+      </select>
+      <button id="btnBold" title="Bold" style="padding:5px 10px">B</button>
+      <div class="sep"></div>
+      <div class="sw" data-c="#232a33" style="background:#232a33" title="Ink"></div>
+      <div class="sw" data-c="#58616d" style="background:#58616d" title="Gray"></div>
+      <div class="sw" data-c="#3563e3" style="background:#3563e3" title="Blue"></div>
+      <div class="sw" data-c="#3f9168" style="background:#3f9168" title="Green"></div>
+      <div class="sw" data-c="#6b4fd8" style="background:#6b4fd8" title="Purple"></div>
+      <div class="sw" data-c="#c47a1f" style="background:#c47a1f" title="Orange"></div>
+      <div class="hint">styles apply to the text you're editing</div>
+    </div>
+    <div id="stageWrap"><iframe id="frame" width="1280" height="720" tabindex="-1"></iframe></div>
+    <div id="help">click = select · drag = move · double-click = edit text · Enter / Esc = done · Shift+Enter = newline · Del = delete element · Ctrl+Z = undo · Ctrl+S = save</div>
+  </div>
+  <div id="notes"><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
+  </div>
+  <div id="cpanel"></div>
+</div>
+<dialog id="cdlg"><form id="cfrm"><h2 id="chead" style="font-size:16px">Add a comment</h2><p id="cctx"></p><textarea id="cinp" required placeholder="What should change?"></textarea><div class="acts"><button type="button" id="cmic" data-mic="dialog" style="margin-right:auto">🎤 Dictate</button><button type="button" id="ccancel">Cancel</button><button type="submit">Save comment (⌘↵)</button></div></form></dialog>
+
+<script>
+'use strict';
+/* ───────────────────────── state ───────────────────────── */
+const S = {
+  files: [],            // [{path,label}]
+  current: null,        // rel path
+  dirty: new Map(),     // path -> bool
+  undo: [],             // per-slide snapshots (outerHTML of .slide)
+  scale: 1,
+  fit: true,
+  selected: null,       // object element (direct child of .slide)
+  editing: null,        // element in text-edit mode
+  drag: null,
+};
+const $ = (id) => document.getElementById(id);
+const frame = $('frame');
+const SLIDE_W = 1280, SLIDE_H = 720;
+const OVERRIDE_ID = '__ed_override';
+
+/* ───────────────────────── sidebar ───────────────────────── */
+async function init() {
+  const data = await (await fetch('/api/list')).json();
+  S.files = data.files.map((p) => {
+    const name = p.split('/').pop().replace(/\.html$/, '');
+    const num = p.startsWith('slides/') ? name.slice(0, 2) : '';
+    return { path: p, num, label: name.replace(/^\d+-/, '').replace(/-/g, ' ') };
+  });
+  buildList();
+  if (S.files.length) openSlide(S.files[0].path);
+}
+function buildList() {
+  const list = $('slideList');
+  list.innerHTML = '';
+  const grp = (t) => { const d = document.createElement('div'); d.className = 'grp'; d.textContent = t; list.appendChild(d); };
+  const mk = (f) => {
+    const d = document.createElement('div');
+    d.className = 'item' + (f.path === S.current ? ' active' : '') + (S.dirty.get(f.path) ? ' dirty' : '');
+    d.dataset.path = f.path;
+    d.innerHTML = '<span class="no">' + (f.num || '·') + '</span><span class="nm"></span><span class="dot"></span>' + (f.path.startsWith('slides/') ? '<span class="mv"><button data-d="-1" title="Move up">▲</button><button data-d="1" title="Move down">▼</button></span>' : '');
+    { const g = f.path.startsWith('slides/') ? groupOf(f.path) : null; d.querySelector('.nm').textContent = f.label + (g ? '  ×' + g.length : ''); }
+    d.onclick = (e) => { const b = e.target.closest('[data-d]'); if (b) { e.stopPropagation(); moveSlide(f.path, +b.dataset.d); return; } openSlide(f.path); };
+    list.appendChild(d);
+  };
+  const mainN = S.files.filter((f) => f.path.startsWith('slides/')).length;
+  grp('Main deck · 01–' + String(mainN).padStart(2, '0'));
+  S.files.filter((f) => f.path.startsWith('slides/')).forEach(mk);
+  grp('Option variants');
+  S.files.filter((f) => f.path.startsWith('options/')).forEach(mk);
+  updateVbar();
+}
+async function moveSlide(path, dir) {
+  if (S.editing) commitEdit();
+  if ([...S.dirty.values()].some(Boolean)) { alertBar('Save your changes (Ctrl+S) before moving slides.'); return; }
+  const r = await fetch('/api/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: path, dir }) });
+  if (!r.ok) { alertBar('Could not move that slide.'); return; }
+  const { file } = await r.json();
+  S.current = null;
+  const data = await (await fetch('/api/list')).json();
+  S.files = data.files.map((p) => { const name = p.split('/').pop().replace(/\.html$/, ''); const num = p.startsWith('slides/') ? name.slice(0, 2) : ''; return { path: p, num, label: name.replace(/^\d+-/, '').replace(/-/g, ' ') }; });
+  buildList();
+  openSlide(file);
+}
+function alertBar(msg) { const h = document.getElementById('help'); if (!h) return; const old = h.textContent; h.textContent = msg; h.style.color = '#e8a33d'; setTimeout(() => { h.textContent = old; h.style.color = ''; }, 4000); }
+function refreshList() {
+  document.querySelectorAll('.item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.path === S.current);
+    el.classList.toggle('dirty', !!S.dirty.get(el.dataset.path));
+  });
+}
+
+/* ───────────────────────── open a slide ───────────────────────── */
+async function openSlide(path) {
+  if (S.editing) commitEdit();   // never drop an in-flight edit silently
+  if (S.current && S.dirty.get(S.current) && S.current !== path) {
+    if (!confirm('"' + S.current + '" has unsaved changes. Discard them?')) return;
+  }
+  S.current = path;
+  updateVbar();
+  S.undo = [];
+  S.selected = null; S.editing = null; S.drag = null;
+  $('curfile').textContent = path;
+  $('dirty').classList.remove('on');
+  $('btnSave').classList.remove('dirty');
+  frame.src = path;           // same-origin → we can reach into contentDocument
+  refreshList();
+  fit();
+}
+frame.onload = () => { setupDoc(); loadNotes(); fit(); };
+
+/* speaker notes live in the slide file, in a script element of type text/x-notes */
+function notesEl(create) {
+  const d = doc(); if (!d) return null;
+  let n = d.querySelector('script[type="text/x-notes"]');
+  if (!n && create) { n = d.createElement('script'); n.type = 'text/x-notes'; d.body.appendChild(n); }
+  return n;
+}
+function loadNotes() {
+  const n = notesEl(false), ta = $('notesTa');
+  ta.value = n ? n.textContent.replace(/^\n|\n$/g, '') : '';
+  ta.disabled = !doc() || !doc().querySelector('.slide');
+}
+$('notesTa').addEventListener('input', () => {
+  const v = $('notesTa').value;
+  const n = notesEl(v.trim() !== ''); if (!n) return;
+  n.textContent = '\n' + v.replace(/<\/script/gi, '<\\/script') + '\n';
+  setDirty(true);
+});
+$('notesTa').addEventListener('keydown', (e) => { e.stopPropagation(); if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } });
+
+/* ───────────────────────── in-iframe setup ───────────────────────── */
+function doc() { return frame.contentDocument; }
+
+function injectOverride() {
+  const d = doc();
+  if (d.getElementById(OVERRIDE_ID)) return;
+  const st = d.createElement('style');
+  st.id = OVERRIDE_ID;
+  st.textContent =
+    'html,body{margin:0;padding:0;background:#f4f5f7!important}' +
+    '.slide{box-shadow:none!important}' +
+    '.slide > *{user-select:none;cursor:grab}' +
+    '.slide > * .no-touch, [contenteditable]{user-select:text!important}' +
+    '[contenteditable]{cursor:text!important;outline:none!important}' +
+    '[contenteditable]:focus{outline:2px solid #3563e3!important;outline-offset:3px!important;border-radius:4px}' +
+    '.__sel{outline:2px dashed #3563e3!important;outline-offset:3px}' +
+    '.__sel:hover{cursor:grab}' +
+    '__ED__';
+  d.head.appendChild(st);
+}
+
+function setupDoc() {
+  const d = doc();
+  injectOverride();
+  const slide = d.querySelector('.slide');
+  if (!slide) return;
+
+  d.addEventListener('click', (e) => {
+    const t = e.target;
+    if (S.editing && !S.editing.contains(t)) commitEdit();
+    const obj = t.closest ? t.closest('.slide > *') : null;
+    select(obj);
+  });
+
+  d.addEventListener('dblclick', (e) => {
+    let t = e.target;
+    if (t.nodeType === 3) t = t.parentElement;
+    if (!t || t === d.body || t === slide) return;
+    enterEdit(t);
+  });
+
+  d.addEventListener('pointerdown', (e) => {
+    if (S.editing) return;                       // let text selection work
+    const obj = e.target.closest ? e.target.closest('.slide > *') : null;
+    if (!obj) return;
+    const cs = d.defaultView.getComputedStyle(obj);
+    if (cs.position !== 'absolute') return;      // only move absolutely-positioned objects
+    S.drag = { obj, sx: e.clientX, sy: e.clientY,
+               left: parseFloat(cs.left) || 0, top: parseFloat(cs.top) || 0,
+               moved: false, pre: snapshot() };
+    try { e.target.setPointerCapture(e.pointerId); } catch {}
+    // NOTE: do NOT preventDefault here — cancelling pointerdown suppresses the
+    // compatibility click/dblclick events we rely on for select + edit.
+    // Text selection during drags is already blocked by the user-select:none override.
+  }, true);
+  d.addEventListener('pointermove', onMove);
+  d.addEventListener('pointerup', onDragEnd);
+  d.addEventListener('pointercancel', onDragEnd);
+  d.addEventListener('input', () => { if (S.editing) setDirty(); });  // dirty the moment typing starts
+
+  d.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !S.editing) { e.preventDefault(); undo(); return; }
+    if (S.editing) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+      if (e.key === 'Escape') { e.preventDefault(); commitEdit(); }
+      return;
+    }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && S.selected) { e.preventDefault(); deleteSelected(); }
+    if (e.key === 'Escape') select(null);
+    if (!S.selected && stepKey(e)) return;
+    nudge(e);
+  });
+}
+
+/* pointer events fire inside the iframe; the browser already maps the CSS
+   transform, so clientX/Y here are slide (content) pixels. */
+function onMove(e) {
+  if (!S.drag) return;
+  e.preventDefault();
+  const dx = e.clientX - S.drag.sx, dy = e.clientY - S.drag.sy;
+  if (Math.abs(dx) + Math.abs(dy) > 3) S.drag.moved = true;
+  S.drag.obj.style.left = (S.drag.left + dx) + 'px';
+  S.drag.obj.style.top = (S.drag.top + dy) + 'px';
+}
+function onDragEnd() {
+  if (!S.drag) return;
+  if (S.drag.moved) { pushUndo(S.drag.pre); setDirty(); }
+  S.drag = null;
+}
+
+function snapshot() { const s = doc().querySelector('.slide'); return s ? s.outerHTML : ''; }
+
+/* ───────────────────────── selection ───────────────────────── */
+function select(obj) {
+  if (S.selected === obj) return;
+  if (S.selected) S.selected.classList.remove('__sel');
+  S.selected = obj;
+  if (obj) obj.classList.add('__sel');
+  $('btnDel').disabled = !obj;
+}
+
+/* ───────────────────────── text editing ───────────────────────── */
+function enterEdit(el) {
+  if (S.editing && S.editing !== el) commitEdit();
+  try { el.contentEditable = 'plaintext-only'; } catch { el.contentEditable = 'true'; }
+  el.classList.add('__editing');
+  S.editing = el;
+  S.editingPre = snapshot();
+  el.focus();
+  const r = doc().createRange(); r.selectNodeContents(el);
+  const sel = frame.contentWindow.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  showStylebar(true);
+}
+function commitEdit() {
+  if (!S.editing) return;
+  const el = S.editing;
+  const wasNew = !!el.dataset.edNew;
+  el.removeAttribute('contenteditable');
+  el.classList.remove('__editing');
+  el.removeAttribute('data-ed-new');
+  const empty = !el.textContent.trim();
+  if (empty && wasNew) el.remove();              // a brand-new box left empty → drop it
+  S.editing = null;
+  if (el.isConnected || empty) pushUndo(S.editingPre);
+  setDirty();
+  showStylebar(false);
+}
+function showStylebar(on) { $('stylebar').classList.toggle('on', on); if (!on) $('szSel').value = ''; }
+
+/* drag handlers (onMove / onDragEnd) are attached per-document in setupDoc() */
+
+/* ───────────────────────── keyboard (page-level) ───────────────────────── */
+function nudge(e) {
+  if (!S.selected || S.editing || S.drag) return;
+  const step = e.shiftKey ? 10 : 2;
+  let dx = 0, dy = 0;
+  if (e.key === 'ArrowLeft') dx = -step; else if (e.key === 'ArrowRight') dx = step;
+  else if (e.key === 'ArrowUp') dy = -step; else if (e.key === 'ArrowDown') dy = step;
+  else return;
+  e.preventDefault();
+  const obj = S.selected;
+  const cs = doc().defaultView.getComputedStyle(obj);
+  if (cs.position !== 'absolute') return;
+  const pre = snapshot();
+  obj.style.left = ((parseFloat(cs.left) || 0) + dx) + 'px';
+  obj.style.top = ((parseFloat(cs.top) || 0) + dy) + 'px';
+  pushUndo(pre); setDirty();
+}
+/* ←/→ with nothing selected moves between slides (with a selection they nudge it). */
+function stepSlide(dir) {
+  const from = mainOf(S.current) || S.current;
+  const i = S.files.findIndex((f) => f.path === from);
+  const next = S.files[i + dir];
+  if (next) openSlide(next.path);
+}
+/* variants: options/<slide name without its number>--<tag>.html belongs to slides/NN-<slide name>.html */
+const slugOf = (p) => String(p).split('/').pop().replace(/\.html$/, '').replace(/^\d+-/, '');
+function mainOf(p) {
+  if (!p) return null;
+  if (p.startsWith('slides/')) return p;
+  const m = slugOf(p).split('--')[0];
+  const hit = S.files.find((f) => f.path.startsWith('slides/') && slugOf(f.path) === m);
+  return hit ? hit.path : null;
+}
+function groupOf(p) {
+  const main = mainOf(p); if (!main) return null;
+  const vs = S.files.filter((f) => f.path.startsWith('options/') && slugOf(f.path).split('--')[0] === slugOf(main)).map((f) => f.path);
+  return vs.length ? [main, ...vs] : null;
+}
+function cycleVariant(dir) {
+  const g = groupOf(S.current); if (!g) return;
+  const i = g.indexOf(S.current);
+  openSlide(g[(i + dir + g.length) % g.length]);
+}
+function updateVbar() {
+  const bar = $('vbar'); if (!bar) return;
+  const g = groupOf(S.current);
+  const isVar = S.current && S.current.startsWith('options/');
+  let h = '';
+  if (g) {
+    const i = g.indexOf(S.current);
+    const tag = isVar ? slugOf(S.current).split('--').slice(1).join(' ').replace(/-/g, ' ') : 'current';
+    h += '<button id="vprev" title="Previous version (←)">‹</button><div class="vl">Version <b>' + (i + 1) + '</b> of ' + g.length + ' · ' + tag + '</div><button id="vnext" title="Next version (→)">›</button>';
+    if (isVar) h += '<button id="vuse" class="use" title="Make this the slide in the deck. The current slide is kept as a variant.">Use this version</button>';
+  }
+  h += '<button id="vnew" title="Ask Claude for a variant (V)">+ Variant</button>';
+  bar.innerHTML = h;
+  const on = (id, fn) => { const b = $(id); if (b) b.onclick = (e) => { fn(); e.currentTarget.blur(); }; };
+  on('vprev', () => cycleVariant(-1)); on('vnext', () => cycleVariant(1)); on('vnew', () => window.requestVariant && window.requestVariant());
+  on('vuse', async () => {
+    if (S.dirty.get(S.current)) { alertBar('Save your changes (Ctrl+S) first.'); return; }
+    const r = await fetch('/api/promote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: S.current }) });
+    if (!r.ok) { alertBar('Could not swap that version in.'); return; }
+    const { main } = await r.json(); openSlide(main); frame.src = main + '?t=' + Date.now();
+  });
+}
+function stepKey(e) {
+  if (S.editing || e.ctrlKey || e.metaKey) return false;
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return false;
+  const dir = e.key === 'ArrowLeft' ? -1 : 1;
+  e.preventDefault();
+  if (e.altKey || !groupOf(S.current)) stepSlide(dir); else cycleVariant(dir);
+  return true;
+}
+window.addEventListener('keydown', (e) => {
+  const t = e.target && e.target.tagName;
+  if (!S.selected && t !== 'INPUT' && t !== 'SELECT' && t !== 'TEXTAREA' && stepKey(e)) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+});
+window.addEventListener('beforeunload', (e) => {
+  if ([...S.dirty.values()].some(Boolean)) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ───────────────────────── add / delete / undo ───────────────────────── */
+function addText() {
+  const d = doc(); const slide = d.querySelector('.slide');
+  if (!slide) return;
+  if (S.editing) commitEdit();
+  const pre = snapshot();
+  const el = d.createElement('div');
+  el.className = 'abs';
+  el.dataset.edNew = '1';
+  el.style.cssText = 'left:470px;top:300px;font-family:"Inter Tight",sans-serif;font-size:24px;font-weight:700;color:#232a33;line-height:1.3';
+  el.textContent = 'New text';
+  slide.appendChild(el);
+  select(el);
+  pushUndo(pre); setDirty();
+  enterEdit(el);
+}
+function deleteSelected() {
+  if (!S.selected || S.selected === doc().body) return;
+  if (S.editing) commitEdit();
+  if (!confirm('Delete this element from the slide? (Ctrl+Z can undo)')) return;
+  const pre = snapshot();
+  S.selected.remove();
+  select(null);
+  pushUndo(pre); setDirty();
+}
+function pushUndo(pre) {
+  S.undo.push(pre);
+  if (S.undo.length > 40) S.undo.shift();
+}
+function undo() {
+  const pre = S.undo.pop();
+  if (pre === undefined) return;
+  if (S.editing) commitEdit();
+  const s = doc().querySelector('.slide');
+  s.outerHTML = pre;
+  S.selected = null;
+  $('btnDel').disabled = true;
+  setDirty();
+}
+
+/* ───────────────────────── style bar actions ───────────────────────── */
+function styleTarget() { return S.editing; }
+// style actions return focus to the edited element so that Enter still
+// commits the edit instead of re-triggering the focused button
+$('szSel').addEventListener('change', () => {
+  const el = styleTarget(); if (!el) return;
+  if ($('szSel').value) el.style.fontSize = $('szSel').value + 'px';
+  el.focus();
+  setDirty();
+});
+$('btnBold').addEventListener('click', () => {
+  const el = styleTarget(); if (!el) return;
+  const w = el.style.fontWeight;
+  el.style.fontWeight = (w === '700' || w === '800') ? '400' : '700';
+  el.focus();
+  setDirty();
+});
+document.querySelectorAll('#stylebar .sw').forEach((sw) => {
+  sw.addEventListener('click', () => {
+    const el = styleTarget(); if (!el) return;
+    el.style.color = sw.dataset.c;
+    el.focus();
+    setDirty();
+  });
+});
+
+/* ───────────────────────── zoom / fit ───────────────────────── */
+function fit() {
+  if (!S.fit) return;
+  const c = $('canvas');
+  const s = Math.min((c.clientWidth - 48) / SLIDE_W, (c.clientHeight - 48) / SLIDE_H);
+  setScale(Math.min(s, 1));
+}
+function setScale(s) {
+  S.scale = s;
+  frame.style.transform = 'scale(' + s + ')';
+  $('stageWrap').style.width = (SLIDE_W * s) + 'px';
+  $('stageWrap').style.height = (SLIDE_H * s) + 'px';
+  $('zoomBtn').textContent = S.fit ? 'Fit' : '100%';
+}
+$('zoomBtn').onclick = (e) => {
+  S.fit = !S.fit;
+  if (S.fit) fit(); else setScale(1);
+  e.currentTarget.blur();
+};
+window.addEventListener('resize', () => { if (S.fit) fit(); });
+
+/* ───────────────────────── save ───────────────────────── */
+function setDirty(v) {
+  if (S.current) {
+    S.dirty.set(S.current, v !== false ? true : false);
+    $('dirty').classList.toggle('on', S.dirty.get(S.current));
+    $('btnSave').classList.toggle('dirty', S.dirty.get(S.current));
+    refreshList();
+  }
+}
+function sanitize(d) {
+  const ov = d.getElementById(OVERRIDE_ID); if (ov) ov.remove();
+  d.querySelectorAll('[contenteditable]').forEach((e) => e.removeAttribute('contenteditable'));
+  d.querySelectorAll('.__sel,.__editing').forEach((e) => e.classList.remove('__sel', '__editing'));
+}
+async function save() {
+  if (!S.current || !doc() || !doc().querySelector('.slide')) return;
+  if (S.editing) commitEdit();
+  const d = doc();
+  sanitize(d);
+  const html = '<!doctype html>\n' + d.documentElement.outerHTML;
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: S.current, html }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.ok) throw new Error(j.error || res.status);
+    setDirty(false);
+    const f = $('savedFlash'); f.classList.add('on');
+    setTimeout(() => f.classList.remove('on'), 1400);
+  } catch (e) {
+    alert('Save failed: ' + e.message);
+  }
+  // re-inject override so the editor keeps working after serialization stripped it
+  injectOverride();
+}
+
+// top-bar buttons blur after acting so Enter can't re-trigger them
+$('btnSave').onclick = (e) => { save(); e.currentTarget.blur(); };
+// Export renders the saved files on the server, so save unsaved edits first.
+async function exportFile(btn, url, label) {
+  if (S.current && S.dirty.get(S.current)) await save();
+  const old = btn.textContent; btn.textContent = label; btn.disabled = true;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(await r.text());
+    const name = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'export';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (err) { alert('Export failed: ' + err.message); }
+  finally { btn.textContent = old; btn.disabled = false; btn.blur(); }
+}
+$('btnPng').onclick = (e) => exportFile(e.currentTarget, '/api/export/png?file=' + encodeURIComponent(S.current), 'Exporting…');
+$('btnPngs').onclick = (e) => exportFile(e.currentTarget, '/api/export/pngs', 'Zipping PNGs…');
+$('btnPptx').onclick = (e) => exportFile(e.currentTarget, '/api/export/pptx', 'Building PPTX…');
+$('btnPdf').onclick = (e) => exportFile(e.currentTarget, '/api/export/pdf?scope=main', 'Building PDF…');
+$('btnPrev').onclick = (e) => { stepSlide(-1); e.currentTarget.blur(); };
+$('btnNext').onclick = (e) => { stepSlide(1); e.currentTarget.blur(); };
+$('btnUndo').onclick = (e) => { undo(); e.currentTarget.blur(); };
+$('btnAdd').onclick  = (e) => { addText(); e.currentTarget.blur(); };
+$('btnDel').onclick  = (e) => { deleteSelected(); e.currentTarget.blur(); };
+
+init();
+</script>
+<script>
+(() => {
+  const byId = (i) => document.getElementById(i);
+  const panel = byId('cpanel'), dlg = byId('cdlg'), inp = byId('cinp'), ctx = byId('cctx');
+  let comments = [], hideRes = true, activeId = null, rec = null, lastSave = 0, statusMsg = 'Press C to comment on the selected text or element.';
+  const drafts = {}, EXP = 'editor-expanded-' + location.pathname + location.port;
+  const expanded = new Set((() => { try { return JSON.parse(localStorage.getItem(EXP) || '[]'); } catch (e) { return []; } })());
+  const saveExp = () => { try { localStorage.setItem(EXP, JSON.stringify([...expanded])); } catch (e) {} };
+  const esc = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const base = (p) => String(p || '').split('/').pop();
+  const label = (f) => (f ? base(f).replace(/\.html$/, '').replace(/^(\d+)-/, '$1 · ').replace(/-/g, ' ') : 'General');
+  const fmt = (t) => (t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+  const hdr = { 'Content-Type': 'application/json' };
+  const say = (m) => { statusMsg = m; const e = panel.querySelector('.st'); if (e) e.textContent = m; };
+  const curFile = () => base(S.current);
+
+  // ---- C opens the comment modal
+  function capture() {
+    let quote = '';
+    try { quote = doc().getSelection().toString().trim(); } catch (e) {}
+    if (!quote && S.selected) quote = (S.selected.innerText || S.selected.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    return { slide: curFile(), quote: quote.slice(0, 500) };
+  }
+  let target = { slide: '', quote: '' };
+  let variantMode = false;
+  function openDlg(variant) {
+    if (dlg.open || !S.current) return;
+    if (S.editing) return;
+    variantMode = variant === true;
+    target = capture();
+    if (variantMode) { target.slide = mainOf(S.current) ? base(mainOf(S.current)) : target.slide; target.quote = ''; }
+    byId('chead').textContent = variantMode ? 'Ask for a variant' : 'Add a comment';
+    inp.placeholder = variantMode ? 'What should this variant try?' : 'What should change?';
+    ctx.textContent = label(target.slide) + (variantMode ? ' · new variant' : (target.quote ? ' · “' + target.quote + '”' : ' · general comment'));
+    inp.value = ''; dlg.showModal(); inp.focus();
+  }
+  window.requestVariant = () => openDlg(true);
+  const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+  const onKey = (e) => {
+    if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(); }
+    if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(true); }
+  };
+  window.addEventListener('keydown', onKey, true);
+  const hookFrame = () => { try { doc().addEventListener('keydown', onKey, true); } catch (e) {} };
+  frame.addEventListener('load', hookFrame); hookFrame();
+  byId('ccancel').onclick = () => dlg.close();
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); byId('cfrm').requestSubmit(); } });
+  byId('cfrm').addEventListener('submit', (e) => {
+    e.preventDefault(); const body = inp.value.trim(); if (!body) return;
+    const c = { id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), slide: target.slide, quote: target.quote, comment: (variantMode ? '[VARIANT REQUEST] ' : '') + body, at: new Date().toISOString() };
+    dlg.close(); say('Sending…');
+    fetch('/comment', { method: 'POST', headers: hdr, body: JSON.stringify(c) }).then((r) => { if (!r.ok) throw 0; say(variantMode ? 'Variant request sent to Claude' : 'Comment sent to Claude'); activeId = c.id; load(); }).catch(() => say('Could not send the comment'));
+  });
+
+  // ---- panel
+  function markReview() {
+    document.querySelectorAll('#slideList .item').forEach((el) => el.classList.remove('review'));
+    comments.filter((c) => c.status === 'changed').forEach((c) => {
+      const ss = (c.slides && c.slides.length) ? c.slides : [c.slide];
+      ss.forEach((f) => { const hit = S.files.find((x) => base(x.path) === base(f)); const el = hit && document.querySelector('#slideList .item[data-path="' + hit.path + '"]'); if (el) el.classList.add('review'); });
+    });
+  }
+  function render() {
+    const keep = panel.scrollTop, a = document.activeElement;
+    const foc = a && a.dataset && a.dataset.reply ? { id: a.dataset.reply, s: a.selectionStart } : null;
+    const cnt = (k) => comments.filter((c) => c.status === k).length, nrev = cnt('changed'), nopen = cnt('open'), ndone = cnt('addressed');
+    let h = '<h2>Comments</h2><div class="sum">' + (nrev ? '<span class="y">' + nrev + ' to review</span>' : '') + (nopen ? '<span>' + nopen + ' waiting on Claude</span>' : '') + (ndone ? '<span>' + ndone + ' resolved</span>' : '') + '</div>'
+      + '<div class="st">' + esc(statusMsg) + '</div>'
+      + '<div class="row"><button data-a="newc">Add comment (C)</button><button data-a="exp">Expand all</button><button data-a="col">Collapse all</button>' + (nrev ? '<button data-a="prev">↑</button><button data-a="next">↓</button>' : '') + '<label><input type="checkbox" id="chr" ' + (hideRes ? 'checked' : '') + '> hide resolved</label></div>';
+    const idx = (f) => S.files.findIndex((x) => base(x.path) === base(f));
+    const order = comments.slice().sort((x, y) => idx(x.slide) - idx(y.slide) || String(x.at).localeCompare(String(y.at))).filter((c) => !(hideRes && c.status === 'addressed'));
+    if (!order.length) h += '<div class="more">' + (comments.length ? 'All threads resolved.' : 'No comments yet. Select text or an element and press C.') + '</div>';
+    order.forEach((c) => {
+      const open = expanded.has(c.id), res = c.status === 'addressed', lab = { open: 'Waiting on Claude', changed: 'To review', addressed: 'Resolved' }[c.status];
+      const msgs = [{ from: 'you', text: c.comment, at: c.at }, ...(c.thread || [])];
+      h += '<div class="th' + (c.id === activeId ? ' active' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '"><div class="hd"><button data-a="tg">' + (open ? '▾' : '▸') + '</button><span class="chip ' + c.status + '">' + lab + '</span><span class="sec">' + esc(label(c.slide)) + '</span>' + (res ? '<button data-a="reopen">Reopen</button>' : '<button data-a="resolve">Resolve</button>') + '</div>' + (c.quote ? '<div class="cq">' + esc(c.quote) + '</div>' : '');
+      if (open) {
+        msgs.forEach((m) => { h += '<div class="m ' + (m.from === 'claude' ? 'claude' + (m.kind === 'change' ? ' change' : '') : '') + '"><div class="mh">' + (m.from === 'claude' ? (m.kind === 'change' ? 'Claude · changed' : 'Claude') : 'You') + ' · ' + fmt(m.at) + '</div><div class="mt">' + esc(m.text) + '</div></div>'; });
+        h += '<textarea class="r" data-reply="' + c.id + '" rows="1" placeholder="Reply… (⌘↵ to send)"></textarea><div class="cb"><button data-a="send">Reply</button><button data-a="mic" data-mic="' + c.id + '">🎤 Dictate</button>' + (c.slide ? '<button data-a="go">Go to slide</button>' : '') + '</div>';
+      } else {
+        const l = msgs[msgs.length - 1], t = (l.text || '').replace(/\s+/g, ' ');
+        h += '<div class="more"><b>' + (l.from === 'claude' ? 'Claude' : 'You') + ':</b> ' + esc(t.length > 110 ? t.slice(0, 110) + '…' : t) + ' · ' + msgs.length + ' message' + (msgs.length > 1 ? 's' : '') + '</div>';
+      }
+      h += '</div>';
+    });
+    panel.innerHTML = h; panel.scrollTop = keep;
+    panel.querySelectorAll('textarea.r').forEach((t) => { if (drafts[t.dataset.reply]) t.value = drafts[t.dataset.reply]; });
+    if (foc) { const t = panel.querySelector('textarea.r[data-reply="' + foc.id + '"]'); if (t) { t.focus({ preventScroll: true }); try { t.setSelectionRange(foc.s, foc.s); } catch (e) {} } }
+    markReview(); setMic();
+  }
+  const post = (id, status) => fetch('/status', { method: 'POST', headers: hdr, body: JSON.stringify({ id, status }) }).then(load);
+  function sendReply(id, text) {
+    text = (text || '').trim(); if (!text) return; say('Sending reply…');
+    return fetch('/reply', { method: 'POST', headers: hdr, body: JSON.stringify({ id, text, at: new Date().toISOString() }) }).then((r) => { if (!r.ok) throw 0; delete drafts[id]; expanded.add(id); saveExp(); say('Reply sent to Claude'); return load(); }).catch(() => say('Could not send the reply'));
+  }
+  const go = (c) => { const f = (c.slides && c.slides[0]) || c.slide; const hit = f && S.files.find((x) => base(x.path) === base(f)); if (hit) openSlide(hit.path); };
+  panel.addEventListener('input', (e) => { const t = e.target; if (t.dataset && t.dataset.reply) drafts[t.dataset.reply] = t.value; });
+  panel.addEventListener('keydown', (e) => { const t = e.target; if (t.dataset && t.dataset.reply && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendReply(t.dataset.reply, t.value); } });
+  panel.addEventListener('click', (e) => {
+    if (e.target.id === 'chr') { hideRes = e.target.checked; render(); return; }
+    const a = e.target.closest('[data-a]') && e.target.closest('[data-a]').dataset.a;
+    if (a === 'newc') { openDlg(); return; }
+    if (a === 'exp') { comments.forEach((c) => expanded.add(c.id)); saveExp(); render(); return; }
+    if (a === 'col') { expanded.clear(); saveExp(); render(); return; }
+    if (a === 'prev' || a === 'next') {
+      const rv = comments.filter((c) => c.status === 'changed'); if (!rv.length) return;
+      const i = rv.findIndex((c) => c.id === activeId); const j = a === 'next' ? (i + 1) % rv.length : (i <= 0 ? rv.length - 1 : i - 1);
+      activeId = rv[j].id; expanded.add(activeId); saveExp(); render(); go(rv[j]); return;
+    }
+    const item = e.target.closest('.th'); if (!item) return;
+    const id = item.dataset.id, c = comments.find((x) => x.id === id); if (!c) return;
+    if (a === 'tg') { expanded.has(id) ? expanded.delete(id) : expanded.add(id); saveExp(); render(); return; }
+    if (a === 'resolve') { post(id, 'addressed'); return; }
+    if (a === 'reopen') { expanded.add(id); saveExp(); post(id, 'open'); return; }
+    if (a === 'send') { sendReply(id, item.querySelector('textarea').value); return; }
+    if (a === 'mic') { toggleMic(id, () => panel.querySelector('textarea.r[data-reply="' + id + '"]')); return; }
+    if (a === 'go') { go(c); return; }
+    if (e.target.tagName === 'TEXTAREA') return;
+    activeId = id; expanded.add(id); saveExp(); render(); go(c);
+  });
+
+  // ---- dictation
+  function setMic() { document.querySelectorAll('[data-mic]').forEach((b) => { const mine = rec && rec.key === b.dataset.mic; b.textContent = mine ? (rec.busy ? '… Transcribing' : '⏹ Stop recording') : '🎤 Dictate'; b.disabled = !!(rec && !mine); b.style.background = mine && !rec.busy ? '#8a2b2b' : ''; }); }
+  async function toggleMic(key, getTa) {
+    if (rec) { if (rec.key === key && !rec.busy && rec.mr) rec.mr.stop(); return; }
+    let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch (e) { say('Mic blocked: allow microphone access for this page'); return; }
+    const mime = ['audio/webm;codecs=opus', 'audio/mp4'].find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+    const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {}), chunks = [];
+    mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop()); rec = { key, busy: true }; setMic(); say('Transcribing…');
+      try {
+        const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+        const r = await fetch('/transcribe', { method: 'POST', headers: { 'Content-Type': blob.type }, body: blob }); if (!r.ok) throw 0;
+        const { text } = await r.json(); const ta = getTa();
+        if (text && ta) { ta.value = (ta.value ? ta.value.replace(/\s*$/, ' ') : '') + text.trim(); if (ta.dataset.reply) drafts[ta.dataset.reply] = ta.value; ta.focus(); }
+        say(text ? 'Dictation added. Edit if needed, then send' : 'Heard nothing');
+      } catch (e) { say('Transcription failed (needs a valid OpenAI key)'); }
+      rec = null; setMic();
+    };
+    rec = { key, mr }; mr.start(); setMic(); say('Recording… click Stop when done');
+  }
+  byId('cmic').onclick = () => toggleMic('dialog', () => inp);
+
+  // ---- data and live reload
+  function load() { return fetch('/comments', { cache: 'no-store' }).then((r) => r.json()).then((d) => { comments = d; render(); }).catch(() => { panel.innerHTML = '<div class="more">Comment server not available.</div>'; }); }
+  const _bl = buildList; buildList = function () { _bl(); markReview(); };
+  const _save = save; save = async function () { lastSave = Date.now(); return _save.apply(this, arguments); };
+  async function refreshFiles() {
+    const data = await (await fetch('/api/list')).json();
+    const paths = data.files.join('|');
+    if (paths === S.files.map((f) => f.path).join('|')) return;
+    const slug = (p) => base(p).replace(/^\d+-/, '');
+    const curSlug = S.current ? slug(S.current) : '';
+    S.files = data.files.map((p) => { const name = base(p).replace(/\.html$/, ''); const num = p.startsWith('slides/') ? name.slice(0, 2) : ''; return { path: p, num, label: name.replace(/^\d+-/, '').replace(/-/g, ' ') }; });
+    buildList();
+    const same = S.files.find((f) => slug(f.path) === curSlug);
+    if (same && same.path !== S.current) { S.dirty.set(S.current, false); S.current = same.path; $('curfile').textContent = same.path; refreshList(); }
+    else if (!same && S.files.length) openSlide(S.files[0].path);
+  }
+  try {
+    const es = new EventSource('/events');
+    es.onmessage = (m) => {
+      if (m.data === 'comments') load();
+      else if (m.data.startsWith('slides:')) {
+        const { changed, structure } = JSON.parse(m.data.slice(7));
+        if (structure) refreshFiles();
+        if (S.current && changed.includes(curFile()) && !S.dirty.get(S.current) && !S.editing && Date.now() - lastSave > 2500) {
+          frame.src = S.current + '?t=' + Date.now(); statusMsg = 'Updated ' + label(curFile()); render();
+        }
+      }
+    };
+  } catch (e) {}
+  render(); load(); setTimeout(fit, 50);
+})();
+</script>
+</body>
+</html>

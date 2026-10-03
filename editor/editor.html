@@ -98,7 +98,10 @@
   #cpanel .cb{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
   .item.review{box-shadow:inset 3px 0 0 #ffcd3c}
   #cdlg{width:min(540px,calc(100vw - 30px));border:1px solid #6685ae;border-radius:11px;background:#17283d;color:#edf2fa;padding:20px}
-  #cdlg::backdrop{background:#0009}
+  #cdlg::backdrop{background:#0000}
+  #cdlg{position:fixed;margin:0;box-shadow:0 12px 40px #000a}
+  #cdlg h2{cursor:move;user-select:none}
+  #cdlg h2::after{content:' · drag to move';font-size:11px;font-weight:400;color:#8ea6c4}
   #cdlg p{color:#b9cde4;font-size:13px;max-height:80px;overflow:auto;margin:6px 0 10px}
   #cdlg textarea{width:100%;min-height:120px;resize:vertical;background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:10px;font:inherit}
   #cdlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
@@ -660,6 +663,20 @@ init();
     return { slide: curFile(), quote: quote.slice(0, 500) };
   }
   let target = { slide: '', quote: '' };
+  /* the comment box can be dragged so the slide stays visible; it remembers where you left it */
+  let dpos = null;
+  function placeDlg() {
+    const w = dlg.offsetWidth, h = dlg.offsetHeight;
+    const p = dpos || { x: window.innerWidth - w - 380, y: window.innerHeight - h - 24 };
+    dlg.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, p.x)) + 'px';
+    dlg.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, p.y)) + 'px';
+  }
+  byId('chead').addEventListener('pointerdown', (e) => {
+    const r = dlg.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+    const mv = (m) => { dpos = { x: m.clientX - ox, y: m.clientY - oy }; placeDlg(); };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); e.preventDefault();
+  });
   let variantMode = false;
   function openDlg(variant) {
     if (dlg.open || !S.current) return;
@@ -670,7 +687,7 @@ init();
     byId('chead').textContent = variantMode ? 'Ask for a variant' : 'Add a comment';
     inp.placeholder = variantMode ? 'What should this variant try?' : 'What should change?';
     ctx.textContent = label(target.slide) + (variantMode ? ' · new variant' : (target.quote ? ' · “' + target.quote + '”' : ' · general comment'));
-    inp.value = ''; dlg.showModal(); inp.focus();
+    inp.value = ''; dlg.showModal(); placeDlg(); inp.focus();
   }
   window.requestVariant = () => openDlg(true);
   const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);

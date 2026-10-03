@@ -318,14 +318,56 @@ function setupDoc() {
   const slide = d.querySelector('.slide');
   if (!slide) return;
 
+  /* touch rules: one tap never selects (so panning and pinch zoom never grab things). Double tap selects,
+     double tap on the selected item edits it, a single tap on the selected item or on empty space unselects. */
+  let lastType = 'mouse';
+  d.addEventListener('pointerdown', (e) => { lastType = e.pointerType; }, true);
+  const zoomedIn = () => window.visualViewport && window.visualViewport.scale > 1.02;
+  const tap = { x: 0, y: 0, t: 0, moved: false, multi: false, prevT: 0, prevX: 0, prevY: 0, timer: null, target: null };
+  const objAt = (t) => (t && t.closest) ? t.closest('.slide > *') : null;
+  d.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+      tap.multi = true;
+      clearTimeout(tap.timer);
+      if (S.drag) { S.drag.obj.style.left = S.drag.left + 'px'; S.drag.obj.style.top = S.drag.top + 'px'; S.drag = null; }   // a second finger means pinch: undo any nudge
+      return;
+    }
+    const f = e.touches[0];
+    tap.x = f.clientX; tap.y = f.clientY; tap.t = Date.now(); tap.moved = false; tap.multi = false; tap.target = e.target;
+  }, { capture: true, passive: true });
+  d.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) { tap.multi = true; return; }
+    const f = e.touches[0];
+    if (Math.hypot(f.clientX - tap.x, f.clientY - tap.y) * (S.scale || 1) > 10) tap.moved = true;
+  }, { capture: true, passive: true });
+  d.addEventListener('touchend', (e) => {
+    if (e.touches.length > 0) return;
+    if (tap.multi || tap.moved || S.editing) { tap.multi = false; return; }
+    if (Date.now() - tap.t > 400) return;                    // a press and hold is the comment gesture
+    const now = Date.now(), t = tap.target, obj = objAt(t);
+    const dbl = now - tap.prevT < 350 && Math.hypot(tap.x - tap.prevX, tap.y - tap.prevY) * (S.scale || 1) < 30;
+    clearTimeout(tap.timer);
+    if (dbl) {
+      tap.prevT = 0;
+      if (!obj) return;
+      if (S.selected === obj) { let el = t.nodeType === 3 ? t.parentElement : t; if (el && el !== d.body && el !== slide) enterEdit(el); }
+      else select(obj);
+      return;
+    }
+    tap.prevT = now; tap.prevX = tap.x; tap.prevY = tap.y;
+    tap.timer = setTimeout(() => { if (!obj || obj === S.selected) select(null); }, 340);
+  }, { capture: true, passive: true });
+
   d.addEventListener('click', (e) => {
     const t = e.target;
     if (S.editing && !S.editing.contains(t)) commitEdit();
+    if (lastType === 'touch') return;                         // touch is handled by the tap rules above
     const obj = t.closest ? t.closest('.slide > *') : null;
     select(obj);
   });
 
   d.addEventListener('dblclick', (e) => {
+    if (lastType === 'touch') return;
     let t = e.target;
     if (t.nodeType === 3) t = t.parentElement;
     if (!t || t === d.body || t === slide) return;
@@ -336,7 +378,7 @@ function setupDoc() {
     if (S.editing) return;                       // let text selection work
     const obj = e.target.closest ? e.target.closest('.slide > *') : null;
     if (!obj) return;
-    if (e.pointerType === 'touch' && S.selected !== obj) return;   // touch: only drag what is already selected, so swiping between slides never moves things
+    if (e.pointerType === 'touch' && (!e.isPrimary || tap.multi || S.selected !== obj || zoomedIn())) return;   // touch: only drag what is already selected, so swiping between slides never moves things
     const cs = d.defaultView.getComputedStyle(obj);
     if (cs.position !== 'absolute') return;      // only move absolutely-positioned objects
     S.drag = { obj, sx: e.clientX, sy: e.clientY,
@@ -623,6 +665,7 @@ function toggleDrawer(cls, other) {
 $('navSide').onclick = (e) => { toggleDrawer('show-side', 'show-cmt'); e.currentTarget.blur(); };
 $('navCmt').onclick = (e) => { toggleDrawer('show-cmt', 'show-side'); e.currentTarget.blur(); };
 $('canvas').addEventListener('pointerdown', () => document.body.classList.remove('show-side', 'show-cmt'));
+$('canvas').addEventListener('click', (e) => { if (e.target === $('canvas') && !S.editing) select(null); });   // tap the dark area around the slide to unselect
 $('slideList').addEventListener('click', () => document.body.classList.remove('show-side'));
 
 

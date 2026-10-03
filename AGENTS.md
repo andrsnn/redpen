@@ -28,7 +28,7 @@ The user then flips between the main page and its variants with the arrow keys, 
 ## Rules
 
 - **Facts come only from the user.** Never invent numbers, names, outcomes or quotes. If a page needs a fact you do not have, ask one short question. If you propose something, say it is a guess.
-- **Plain words.** Name who did what. Avoid slogans, staccato fragments and lines that sound deep but claim nothing. If a listener could not repeat a line back as a fact, rewrite it.
+- **Plain words.** `review/respond.py` runs `tools/slop-lint.py` and blocks a "changed" reply while a changed page has a flagged phrase. Name who did what. Avoid slogans, staccato fragments and lines that sound deep but claim nothing. If a listener could not repeat a line back as a fact, rewrite it.
 - **Less text.** Aim for 50 characters or fewer per line. Prefer a diagram when it shows how something works.
 - **Speaker notes** go inside the page file as `<script type="text/x-notes">`. The editor has a notes box under the page.
 - **Keep the user's edits.** If they changed something in the editor, keep it unless it is broken.

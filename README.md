@@ -69,6 +69,7 @@ For each comment the agent makes the change and replies with `python3 review/res
 | `AGENTS.md` | The loop and rules the agent follows. |
 | `NEW-DECK.md` | Kickoff questions before building anything. |
 | `template/slide.html` | The page frame, header, footer and color tokens. |
+| `tools/slop-lint.py` | Flags vague phrases in page text. `respond.py` runs it and refuses to send a "changed" reply while a changed page has a flagged line. Add phrases to `tools/slop-phrases.txt`, or allow a deliberate quote in `<project>/review/slop-allow.txt`. |
 | `tools/` | `new-deck.js` scaffolds a project, `render.js` renders PNGs and flags clipped text, `watch-comments.py` prints new comments. |
 | `editor/` | The editor server and app. |
 | `review/` | The comment API and `respond.py`, the agent's reply script. |
@@ -85,6 +86,12 @@ For each comment the agent makes the change and replies with `python3 review/res
 | Alt + ← → | Previous or next page |
 | ⌘↵ | Send the comment |
 | ⌘S | Save |
+
+## Plain-words check
+
+`review/respond.py` runs `tools/slop-lint.py` on the pages named in `--slides` before it sends a "changed" reply, and stops if a line matches a phrase in `tools/slop-phrases.txt` (add the phrases you keep catching). Pass `--skip-slop` for a deliberate quote, or add the exact line to `<project>/review/slop-allow.txt`.
+
+For Claude Code users, `tools/claude-slop-gate.py` is an optional hook. It blocks `git commit` and `respond.py` when page files changed and the `slop-to-english` skill has not been run since. Copy it to `~/.claude/hooks/` and add a `PreToolUse` hook for `Bash` that runs `python3 ~/.claude/hooks/claude-slop-gate.py` in `~/.claude/settings.json`.
 
 ## Dictation (optional)
 

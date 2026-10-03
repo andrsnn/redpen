@@ -1,0 +1,40 @@
+# One phrase per line. Matched case-insensitively against visible slide text.
+# Add a line whenever a phrase gets called slop in review. Lines starting with # are ignored.
+# Prefix a line with re: to use a regular expression.
+how bad it gets
+how bad
+moved the needle
+move the needle
+low-hanging fruit
+north star
+in our dna
+game changer
+best-in-class
+world-class
+delve
+tapestry
+testament
+landscape
+realm
+intricate
+pivotal
+crucial
+underscore
+showcase
+leverage
+unlock
+elevate
+streamline
+harness
+empower
+seamless
+robust
+it's worth noting
+let's dive
+here's the thing
+in conclusion
+in today's fast-paced
+re:\bnot (just |only |merely )?[^.;:]{1,45}, (but|it's|it is)\b
+re:\bisn't about\b
+re:\bit's not (about )?[^.;:]{1,40}[,;] it's\b
+re:\b(great|good) question\b

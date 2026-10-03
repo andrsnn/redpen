@@ -807,6 +807,7 @@ init();
     dlg.style.left = Math.max(minX, Math.min(maxX, x)) + 'px';
     dlg.style.top = Math.max(minY, Math.min(maxY, y)) + 'px';
   }
+  inp.addEventListener('focus', () => { setTimeout(() => { if (dlg.open) placeDlg(); }, 350); });   // the keyboard changes the visible area: keep the box where it can be seen
   if (window.visualViewport) {
     const re = () => { if (dlg.open) placeDlg(); };
     window.visualViewport.addEventListener('resize', re);
@@ -832,6 +833,8 @@ init();
     // On touch screens, focusing a text box makes the browser zoom or scroll to it, which throws away the user's pinch zoom.
     // So the box opens without focus (the dialog itself takes it) and the user taps the text area to type.
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    // keep the keyboard from resizing the page (that resize is what makes browsers zoom out)
+    try { if (coarse && navigator.virtualKeyboard) navigator.virtualKeyboard.overlaysContent = true; } catch (e) {}
     dlg.tabIndex = -1; dlg.setAttribute('autofocus', '');
     dlg.showModal(); placeDlg();
     if (!coarse) inp.focus({ preventScroll: true }); else { try { dlg.focus({ preventScroll: true }); } catch (e) {} }

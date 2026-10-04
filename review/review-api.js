@@ -93,7 +93,7 @@ exports.create = function create({ deck, port }) {
         }
         if (q.method === 'POST' && u === '/status') {
           const { id, status } = JSON.parse((await body(q, 2000)).toString());
-          if (!['open', 'changed', 'addressed'].includes(status)) throw new Error('bad');
+          if (!['open', 'changed', 'addressed', 'archived'].includes(status)) throw new Error('bad');
           const st = readState(); st[id] = { ...(st[id] || {}), status };
           if (status === 'addressed') st[id].doneAt = new Date().toISOString(); else delete st[id].doneAt;
           writeState(st); r.writeHead(200); r.end('ok'); return;

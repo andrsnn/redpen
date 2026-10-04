@@ -75,9 +75,9 @@ exports.create = function create({ deck, port }) {
       try {
         if (q.method === 'POST' && !okOrigin(q)) { r.writeHead(403); r.end('forbidden'); return; }
         if (q.method === 'POST' && u === '/comment') {
-          const { id, slide, quote, comment, at } = JSON.parse((await body(q, 20000)).toString());
+          const { id, slide, quote, comment, at } = JSON.parse((await body(q, 200000)).toString());
           if (!String(comment || '').trim()) throw new Error('empty');
-          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), comment: String(comment).trim().slice(0, 4000), at: at || new Date().toISOString() }) + '\n');
+          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), comment: String(comment).trim().slice(0, 40000), at: at || new Date().toISOString() }) + '\n');
           r.writeHead(200); r.end('ok'); return;
         }
         if (q.method === 'POST' && u === '/reply') {

@@ -771,7 +771,7 @@ init();
 (() => {
   const byId = (i) => document.getElementById(i);
   const panel = byId('cpanel'), dlg = byId('cdlg'), inp = byId('cinp'), ctx = byId('cctx');
-  let comments = [], hideRes = true, activeId = null, rec = null, lastSave = 0, statusMsg = 'Press C to comment on the selected text or element.';
+  let comments = [], resConfirm = false, hideRes = true, activeId = null, rec = null, lastSave = 0, statusMsg = 'Press C to comment on the selected text or element.';
   const drafts = {}, EXP = 'editor-expanded-' + location.pathname + location.port;
   const expanded = new Set((() => { try { return JSON.parse(localStorage.getItem(EXP) || '[]'); } catch (e) { return []; } })());
   const saveExp = () => { try { localStorage.setItem(EXP, JSON.stringify([...expanded])); } catch (e) {} };
@@ -880,7 +880,7 @@ init();
     const cnt = (k) => comments.filter((c) => c.status === k).length, nrev = cnt('changed'), nopen = cnt('open'), ndone = cnt('addressed');
     let h = '<h2>Comments</h2><div class="sum">' + (nrev ? '<span class="y">' + nrev + ' to review</span>' : '') + (nopen ? '<span>' + nopen + ' waiting on Claude</span>' : '') + (ndone ? '<span>' + ndone + ' resolved</span>' : '') + '</div>'
       + '<div class="st">' + esc(statusMsg) + '</div>'
-      + '<div class="row"><button data-a="newc">Add comment (C)</button><button data-a="exp">Expand all</button><button data-a="col">Collapse all</button>' + (nrev ? '<button data-a="prev">↑</button><button data-a="next">↓</button>' : '') + '<label><input type="checkbox" id="chr" ' + (hideRes ? 'checked' : '') + '> hide resolved</label></div>';
+      + '<div class="row"><button data-a="newc">Add comment (C)</button><button data-a="exp">Expand all</button><button data-a="col">Collapse all</button>' + (nrev + nopen ? '<button data-a="resall">' + (resConfirm ? 'Click again to resolve ' + (nrev + nopen) : 'Resolve all') + '</button>' : '') + (nrev ? '<button data-a="prev">↑</button><button data-a="next">↓</button>' : '') + '<label><input type="checkbox" id="chr" ' + (hideRes ? 'checked' : '') + '> hide resolved</label></div>';
     const idx = (f) => S.files.findIndex((x) => base(x.path) === base(f));
     const order = comments.slice().sort((x, y) => idx(x.slide) - idx(y.slide) || String(x.at).localeCompare(String(y.at))).filter((c) => !(hideRes && c.status === 'addressed'));
     if (!order.length) h += '<div class="more">' + (comments.length ? 'All threads resolved.' : 'No comments yet. Select text or an element and press C.') + '</div>';
@@ -916,6 +916,14 @@ init();
     if (a === 'newc') { openDlg(); return; }
     if (a === 'exp') { comments.forEach((c) => expanded.add(c.id)); saveExp(); render(); return; }
     if (a === 'col') { expanded.clear(); saveExp(); render(); return; }
+    if (a === 'resall') {
+      if (!resConfirm) { resConfirm = true; render(); setTimeout(() => { if (resConfirm) { resConfirm = false; render(); } }, 4000); return; }
+      resConfirm = false;
+      const ids = comments.filter((c) => c.status !== 'addressed').map((c) => c.id);
+      say('Resolving ' + ids.length + ' threads…');
+      Promise.all(ids.map((id) => fetch('/status', { method: 'POST', headers: hdr, body: JSON.stringify({ id, status: 'addressed' }) }))).then(() => { say('Resolved ' + ids.length + ' threads'); return load(); });
+      return;
+    }
     if (a === 'prev' || a === 'next') {
       const rv = comments.filter((c) => c.status === 'changed'); if (!rv.length) return;
       const i = rv.findIndex((c) => c.id === activeId); const j = a === 'next' ? (i + 1) % rv.length : (i <= 0 ? rv.length - 1 : i - 1);

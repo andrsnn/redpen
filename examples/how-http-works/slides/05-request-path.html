@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 — The path of one request</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── fixed frame: every slide is one 1280×720 .slide; children are .abs positioned ── */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#e6e8eb}
+  body{display:flex;justify-content:center;padding:24px;font-family:"Inter Tight",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+  .slide{position:relative;width:1280px;height:720px;flex:none;background:#f4f5f7;overflow:hidden;
+         box-shadow:0 8px 32px rgba(0,0,0,.15);color:#232a33}
+  .abs{position:absolute}
+
+  /* ── header, footer (same on every slide) ── */
+  .eyebrow{left:64px;top:64px;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8a929e}
+  .title{left:62px;top:98px;font-size:40px;font-weight:400;letter-spacing:-.005em;white-space:nowrap}
+  .sub{left:64px;top:156px;font-size:21px;font-weight:500;color:#3d4550}
+  .foot{left:64px;top:606px;width:1152px;font-size:18px;color:#232a33;text-align:center}
+  .flow{left:64px;bottom:28px;width:1152px;font-size:11px;color:#8a929e;letter-spacing:.02em}
+  .pageno{left:1218px;top:683px;font-size:11px;font-weight:500;letter-spacing:.18em}
+
+  /* ── color tokens: put b/g/v/o on a card; use var(--c) and var(--gh) inside ── */
+  .b{--c:#3563e3;--gh:#dde6fb}.g{--c:#3f9168;--gh:#d9ebe0}.v{--c:#6b4fd8;--gh:#e4def9}.o{--c:#c47a1f;--gh:#f3e4cf}
+  .k{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
+  svg.i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+  /* ── example body: a row of cards (replace per slide) ── */
+  .cards{left:64px;top:216px;width:1152px;display:flex;gap:24px}
+  .card{flex:1;height:300px;background:#fff;border:1px solid #e2e5ea;border-top:6px solid var(--c);border-radius:18px;padding:28px 30px;display:flex;flex-direction:column}
+  .tile{width:56px;height:56px;border-radius:16px;background:var(--gh);color:var(--c);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:18px}
+  .card .h{margin-top:8px;font-size:24px;font-weight:800;letter-spacing:-.01em;line-height:1.2;text-wrap:balance}
+  .card .d{margin-top:auto;font-size:15.5px;color:#58616d}
+  .dia{left:64px;top:152px;width:1152px;height:500px;border:1px solid #e2e5ea;border-radius:16px;overflow:hidden;background:#fff}
+  .dia iframe{width:100%;height:100%;border:0;display:block}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <!-- inline icons (Lucide paths work well). Reference with <svg class="i"><use href="#id"/></svg> -->
+  <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+</svg>
+<div class="slide">
+  <div class="abs eyebrow">Diagram</div>
+  <div class="abs title">The path of one request</div>
+  <div class="abs dia"><iframe src="/canvas?file=request-path&embed=1" title="The path of one request"></iframe></div>
+  <div class="abs flow">04 · Check yourself → End</div>
+  <div class="abs pageno">05</div>
+</div>
+</body>
+</html>

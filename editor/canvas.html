@@ -13,11 +13,20 @@
   #bar button.on{background:#dde6fb;font-weight:600}
   #bar button:hover{background:#eef0f3}
   #status{color:#8a929e;padding:0 8px;min-width:90px}
+  body.embed #bar{display:none}
+  #zoombar{display:none;position:fixed;z-index:20;right:12px;bottom:12px;gap:4px;background:#fff;border:1px solid #d0d4da;border-radius:10px;padding:4px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+  body.embed #zoombar{display:flex}
+  #zoombar button{border:0;background:none;min-width:32px;height:30px;border-radius:7px;cursor:pointer;font:600 15px -apple-system,Arial,sans-serif;color:#232a33}
+  #zoombar button:hover{background:#eef0f3}
+  #zoomhint{display:none;position:fixed;z-index:20;left:12px;bottom:14px;font:12px -apple-system,Arial,sans-serif;color:#8a929e;pointer-events:none}
+  body.embed #zoomhint{display:block}
   #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#58616d;font-size:15px;text-align:center;padding:24px}
 </style>
 </head>
 <body>
 <div id="bar"><span id="tabs"></span><span id="status"></span><span id="actions"></span></div>
+<div id="zoombar"><button id="zOut" title="Zoom out">−</button><button id="zFit" title="Fit the whole diagram">Fit</button><button id="zIn" title="Zoom in">+</button></div>
+<div id="zoomhint">Drag to pan · pinch or Ctrl/⌘+scroll to zoom</div>
 <div id="root"></div>
 <div id="msg">Loading canvas…</div>
 <script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
@@ -29,7 +38,8 @@
   var h = React.createElement, msg = document.getElementById('msg'), statusEl = document.getElementById('status'), actions = document.getElementById('actions');
   if (!window.ExcalidrawLib) { msg.textContent = 'Could not load Excalidraw from unpkg.com. Check your connection, or open canvas/*.excalidraw at excalidraw.com.'; return; }
   var current = null, api = null, saveTimer = null, dirty = false, lastSaved = '', loading = false, baseMtime = null, conflict = false, files = [];
-  var fileParam = new URLSearchParams(location.search).get('file');
+  var qs = new URLSearchParams(location.search), fileParam = qs.get('file'), embed = qs.get('embed') === '1';
+  if (embed) document.body.classList.add('embed');
 
   function setStatus(t) { statusEl.textContent = t; }
   function sceneString() { return ExcalidrawLib.serializeAsJSON(api.getSceneElements(), api.getAppState(), api.getFiles(), 'local'); }
@@ -58,7 +68,7 @@
   function clearConflict() { conflict = false; actions.innerHTML = ''; }
 
   function onChange() {
-    if (loading || !api) return;
+    if (embed || loading || !api) return;
     dirty = true; if (!conflict) setStatus('Unsaved');
     clearTimeout(saveTimer); saveTimer = setTimeout(function () { save(); }, 800);
   }
@@ -112,10 +122,28 @@
     root.render(h(ExcalidrawLib.Excalidraw, {
       excalidrawAPI: function (a) { api = a; loadScene(first).then(function () { renderTabs(); setInterval(poll, 2000); }); },
       onChange: onChange,
+      viewModeEnabled: embed, zenModeEnabled: embed,
       UIOptions: { canvasActions: { loadScene: false } },
     }));
   }).catch(function (e) { msg.textContent = 'Could not list canvases: ' + e.message; });
 
+  function zoomBy(f) {
+    if (!api) return;
+    var st = api.getAppState(), z = st.zoom.value, nz = Math.max(0.1, Math.min(8, z * f));
+    var w = st.width, hgt = st.height;
+    api.updateScene({ appState: { zoom: { value: nz }, scrollX: st.scrollX + (w / 2) / nz - (w / 2) / z, scrollY: st.scrollY + (hgt / 2) / nz - (hgt / 2) / z } });
+  }
+  document.getElementById('zIn').onclick = function () { zoomBy(1.3); };
+  document.getElementById('zOut').onclick = function () { zoomBy(1 / 1.3); };
+  document.getElementById('zFit').onclick = function () { if (api) api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: true }); };
+  // inside a slide: hand the slide-navigation keys to the editor / presenter, which sit outside this frame
+  if (embed) document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Escape'].indexOf(e.key) >= 0) {
+      e.preventDefault(); e.stopPropagation();
+      window.top.postMessage({ redpen: 'key', key: e.key }, location.origin);
+    }
+  }, true);
   window.addEventListener('beforeunload', function (e) { if (dirty && !conflict) { save(); e.preventDefault(); e.returnValue = ''; } });
   document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
 })();

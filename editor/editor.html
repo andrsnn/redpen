@@ -1052,6 +1052,13 @@ init();
     show(start >= 0 ? start : 0);
     if (ov.requestFullscreen) ov.requestFullscreen().catch(() => {});
   }
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.redpen !== 'key') return;
+    const k = e.data.key;
+    if (ov.classList.contains('on')) onKey({ key: k, preventDefault() {}, stopPropagation() {} });
+    else if (k === 'ArrowLeft') stepSlide(-1);
+    else if (k === 'ArrowRight') stepSlide(1);
+  });
   $('btnPresent').onclick = (e) => { e.currentTarget.blur(); present(); };
   window.addEventListener('keydown', (e) => {
     const t = e.target && e.target.tagName;

@@ -54,6 +54,17 @@ node editor/editor-server.js projects/my-board               # open http://127.0
 - An agent builds scenes with `tools/canvas-dsl.js`: `zone`, `box`, `note`, `text` and `arrow`. Labels are bound to their boxes and arrows to their boxes, so dragging a box moves both. `save()` reports overlapping boxes. If the agent rewrites the file while you are not editing, the page reloads it.
 - Comments and variants are for pages and do not work on a canvas yet.
 
+### Diagram slides
+
+A slide can hold a live diagram. In the editor and when presenting, you can pan and zoom it (drag, pinch or Ctrl/⌘+scroll, or use the **−  Fit  +** buttons). The arrow keys still change slides.
+
+```sh
+node tools/new-canvas-slide.js projects/my-project 04-architecture "How it fits together" architecture
+node editor/editor-server.js projects/my-project
+```
+
+This adds `slides/04-architecture.html`, which shows `canvas/architecture.excalidraw` through `/canvas?file=architecture&embed=1`. Edit the diagram at `/canvas?file=architecture`; the slide shows the same file. The example project has one on page 05.
+
 ## Using it with an agent
 
 Open the repo in Claude Code, or another coding agent, and tell it:

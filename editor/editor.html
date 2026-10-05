@@ -125,6 +125,8 @@
   }
   @media (max-height:520px){ #notes{display:none} }
 
+  #btnPresent.primary{background:#3563e3;border-color:#3563e3;color:#fff;font-weight:700;padding:6px 14px}
+  #btnPresent.primary:hover{background:#4a76ee}
   #present{position:fixed;inset:0;z-index:99999;background:#000;display:none;overflow:hidden;cursor:default}
   #present.on{display:block}
   #present iframe{position:absolute;left:50%;top:50%;width:1280px;height:720px;border:0;background:#f4f5f7;transform-origin:0 0}
@@ -136,6 +138,7 @@
 
 <div id="topbar">
   <div class="logo">Slide <span>Editor</span></div>
+  <button id="btnPresent" class="primary" title="Present full screen (P)">▶ Present</button>
   <div id="dirty" title="Unsaved changes"></div>
   <div id="curfile">no slide loaded</div>
   <div id="vbar"></div>
@@ -148,7 +151,6 @@
   <button id="btnUndo" title="Undo last change (Ctrl+Z)">Undo</button>
   <button id="btnAdd" title="Insert a new text box">+ Text</button>
   <button id="btnDel" title="Delete selected element (Del)">Delete</button>
-  <button id="btnPresent" title="Present full screen (P)">Full screen</button>
   <button id="btnPng" title="Download this slide as PNG">PNG</button>
   <button id="btnPngs" title="Download every main-deck slide as PNGs (zip)">All PNGs</button>
   <button id="btnPptx" title="Download the main deck as PowerPoint (one image per slide)">PPTX</button>

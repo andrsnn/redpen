@@ -130,7 +130,7 @@ class Scene {
     }
   }
 
-  // Arrow between two boxes. opts: from/to side, via [[x,y]...] waypoints, label, dashed, color, both (two heads).
+  // Arrow between two boxes. opts: from/to side, via [[x,y]...] waypoints, label, dashed, color, both (two heads), sharp (square corners).
   arrow(fromId, toId, o = {}) {
     const a = this.byId[fromId], b = this.byId[toId];
     if (!a || !b) { this.problems.push(`arrow ${fromId} → ${toId}: unknown box`); return; }
@@ -150,6 +150,7 @@ class Scene {
       startBinding: { elementId: fromId, focus: 0, gap: 4 }, endBinding: { elementId: toId, focus: 0, gap: 4 },
       startArrowhead: o.both ? 'arrow' : null, endArrowhead: 'arrow',
     });
+    if (o.sharp) el.roundness = null;   // square corners on multi-point routes
     a.boundElements.push({ type: 'arrow', id }); b.boundElements.push({ type: 'arrow', id });
     if (o.label) {
       const fs_ = o.fs || 16, t = o.labelW ? wrap(o.label, Math.floor(o.labelW / (fs_ * CHAR_W))) : o.label, m = measure(t, fs_);

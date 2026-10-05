@@ -15,7 +15,7 @@ It started as a slide-deck tool. It works for anything you can lay out as pages:
 - **Variants.** Press **V** and say what to try. The agent adds a version of that page. Flip through versions with **← →**, comment on whichever is showing, and press **Use this version** to swap it in. The old page is kept as a variant, so nothing is lost.
 - **Speaker notes.** A notes box under each page, saved inside the page file.
 - **Live reload.** When the agent edits a file, you see it right away.
-- **Full screen.** Press **P** or click **Full screen** to present the main deck. Arrows, space or a click move between slides, and Esc exits.
+- **Present.** Click **▶ Present** (next to the logo) and pick **Full screen** or **Fill this tab**, which covers the editor but stays in the browser tab. Press **P** to repeat your last choice. Arrows, space or a click move between slides, and Esc exits.
 - **Export.** PNG, all pages as a zip, PDF and PPTX.
 - **Plain files.** Every page is one HTML file in a folder, so git shows exactly what changed.
 

@@ -38,3 +38,5 @@ re:\bnot (just |only |merely )?[^.;:]{1,45}, (but|it's|it is)\b
 re:\bisn't about\b
 re:\bit's not (about )?[^.;:]{1,40}[,;] it's\b
 re:\b(great|good) question\b
+# staccato fragment pairs
+three things broke. we changed each one

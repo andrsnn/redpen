@@ -15,9 +15,7 @@
   #status{color:#8a929e;padding:0 8px;min-width:90px}
   body.embed #bar{display:none}
   body.embed .layer-ui__wrapper, body.embed .excalidraw .App-menu, body.embed .excalidraw .zoom-actions, body.embed .excalidraw .help-icon, body.embed .excalidraw .welcome-screen-center{display:none!important}
-  body.embed .excalidraw, body.embed .excalidraw canvas{cursor:grab}
-  body.embed .excalidraw canvas:active{cursor:grabbing}
-  #zoombar{display:none;position:fixed;z-index:20;right:12px;top:12px;gap:4px;background:#fff;border:1px solid #d0d4da;border-radius:10px;padding:4px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+    #zoombar{display:none;position:fixed;z-index:20;right:12px;top:12px;gap:4px;background:#fff;border:1px solid #d0d4da;border-radius:10px;padding:4px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
   body.embed #zoombar{display:flex}
   #zoombar button{border:0;background:none;min-width:32px;height:30px;border-radius:7px;cursor:pointer;font:600 15px -apple-system,Arial,sans-serif;color:#232a33}
   #zoombar button:hover{background:#eef0f3}
@@ -89,7 +87,7 @@
       api.updateScene({ elements: ExcalidrawLib.restoreElements(scene.elements || [], null), appState: { viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || '#ffffff' } });
       var f = Object.keys(scene.files || {}).map(function (k) { return scene.files[k]; });
       if (f.length) api.addFiles(f);
-      setTimeout(function () { if (embed) { fitNow(); } else api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
+      setTimeout(function () { api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
     }).catch(function (e) { setStatus('Load failed'); console.error(e); });
   }
 
@@ -121,6 +119,7 @@
     var first = files.indexOf(fileParam) >= 0 ? fileParam : files[0];
     document.title = r.root + ' · canvas';
     msg.remove();
+    if (embed) { initEmbed(first); return; }
     var root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(h(ExcalidrawLib.Excalidraw, {
       excalidrawAPI: function (a) { api = a; loadScene(first).then(function () { renderTabs(); setInterval(poll, 2000); }); },
@@ -130,63 +129,61 @@
     }));
   }).catch(function (e) { msg.textContent = 'Could not list canvases: ' + e.message; });
 
-  function fitNow() { var els = api.getSceneElements(); if (!els.length) return; var bb = ExcalidrawLib.getCommonBounds(els), v = view(), freeH = v.h - inset, z = clampZ(Math.min(v.w * 0.92 / (bb[2] - bb[0]), freeH * 0.92 / (bb[3] - bb[1]), 2)); setView(z, v.w / 2 / z - (bb[0] + bb[2]) / 2, (inset + freeH / 2) / z - (bb[1] + bb[3]) / 2); }
-  // ---- embedded in a slide: a map-like view (wheel zooms at the cursor, drag pans, double-click focuses) ----
-  var inset = Number(qs.get('inset')) || 0, anim = null;
-  function view() { var st = api.getAppState(); return { z: st.zoom.value, sx: st.scrollX, sy: st.scrollY, w: st.width, h: st.height }; }
-  function setView(z, sx, sy) { api.updateScene({ appState: { zoom: { value: z }, scrollX: sx, scrollY: sy } }); }
-  function clampZ(z) { return Math.max(0.15, Math.min(6, z)); }
-  function animateTo(z, sx, sy) {
-    var v = view(), t0 = performance.now(), dur = 380;
-    cancelAnimationFrame(anim);
-    (function step(now) {
-      var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      setView(v.z + (z - v.z) * e, v.sx + (sx - v.sx) * e, v.sy + (sy - v.sy) * e);
-      if (k < 1) anim = requestAnimationFrame(step);
-    })(t0);
-  }
-  // zoom and scroll that put the box [x0,y0,x1,y1] in the middle of the free area, filling `fill` of it
-  function focusOn(x0, y0, x1, y1, fill, maxZ) {
-    var v = view(), bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0), freeH = v.h - inset;
-    var z = clampZ(Math.min(v.w * fill / bw, freeH * fill / bh, maxZ || 6));
-    animateTo(z, v.w / 2 / z - (x0 + x1) / 2, (inset + freeH / 2) / z - (y0 + y1) / 2);
-  }
-  function fitAll() {
-    var els = api.getSceneElements().filter(function (e) { return !e.isDeleted; });
-    if (!els.length) return;
-    var bb = ExcalidrawLib.getCommonBounds(els);
-    focusOn(bb[0], bb[1], bb[2], bb[3], 0.92, 2);
-  }
-  function zoomAt(px, py, f) {
-    var v = view(), nz = clampZ(v.z * f), sp = [px / v.z - v.sx, py / v.z - v.sy];
-    cancelAnimationFrame(anim);
-    setView(nz, px / nz - sp[0], py / nz - sp[1]);
-  }
-  if (embed) {
-    document.addEventListener('wheel', function (e) {
-      if (!api) return;
-      e.preventDefault(); e.stopPropagation();
-      var d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-      zoomAt(e.clientX, e.clientY, Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0018)));
-    }, { passive: false, capture: true });
-    document.addEventListener('dblclick', function (e) {
-      if (!api) return;
-      var v = view(), x = e.clientX / v.z - v.sx, y = e.clientY / v.z - v.sy, best = null, area = Infinity;
-      api.getSceneElements().forEach(function (el) {
-        if (el.isDeleted || el.type === 'text' || el.type === 'arrow' || el.type === 'line') return;
-        if (x < el.x || x > el.x + el.width || y < el.y || y > el.y + el.height) return;
-        var a = el.width * el.height; if (a < area) { area = a; best = el; }
+  // ---- embedded in a slide: a vector (SVG) map view, so text stays sharp at any zoom ----
+  // wheel zooms at the cursor, drag pans, double-click zooms in or back out, 0 / Fit resets
+  function initEmbed(name) {
+    var inset = Number(qs.get('inset')) || 0, W = 0, H = 0;
+    var box = document.createElement('div'); box.style.cssText = 'position:fixed;inset:0;overflow:hidden;cursor:grab;touch-action:none;background:' ;
+    var sv = document.createElement('div'); sv.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0';
+    box.appendChild(sv); document.body.appendChild(box);
+    var z = 1, tx = 0, ty = 0, fz = 1, sw = 1, sh = 1, anim = 0, lastM = null;
+    function apply() { sv.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + z + ')'; }
+    function size() { W = window.innerWidth; H = window.innerHeight; }
+    function fit(animated) {
+      size(); var free = H - inset; fz = Math.min(W * 0.94 / sw, free * 0.94 / sh);
+      goto_(fz, (W - sw * fz) / 2, inset + (free - sh * fz) / 2, animated);
+    }
+    function goto_(nz, ntx, nty, animated) {
+      cancelAnimationFrame(anim);
+      if (!animated) { z = nz; tx = ntx; ty = nty; apply(); return; }
+      var z0 = z, x0 = tx, y0 = ty, t0 = performance.now();
+      (function step(now) { var k = Math.min(1, (now - t0) / 360), e = 1 - Math.pow(1 - k, 3); z = z0 + (nz - z0) * e; tx = x0 + (ntx - x0) * e; ty = y0 + (nty - y0) * e; apply(); if (k < 1) anim = requestAnimationFrame(step); })(t0);
+    }
+    function zoomAt(px, py, f, animated) {
+      var nz = Math.max(fz * 0.5, Math.min(fz * 12, z * f)), k = nz / z;
+      goto_(nz, px - (px - tx) * k, py - (py - ty) * k, animated);
+    }
+    function load() {
+      return fetch('/api/canvas/get?file=' + encodeURIComponent(name), { cache: 'no-store' }).then(function (r) { baseMtime = Number(r.headers.get('X-Mtime')); return r.json(); }).then(function (scene) {
+        var els = ExcalidrawLib.restoreElements(scene.elements || [], null);
+        return ExcalidrawLib.exportToSvg({ elements: els, appState: { exportBackground: true, viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || '#ffffff' }, files: scene.files || {}, exportPadding: 30 });
+      }).then(function (svg) {
+        sw = parseFloat(svg.getAttribute('width')) || 1000; sh = parseFloat(svg.getAttribute('height')) || 600;
+        svg.style.cssText = 'display:block;width:' + sw + 'px;height:' + sh + 'px';
+        box.style.background = svg.style.background || '#fff';
+        sv.innerHTML = ''; sv.appendChild(svg);
       });
-      e.preventDefault(); e.stopPropagation();
-      if (best) focusOn(best.x, best.y, best.x + best.width, best.y + best.height, 0.6, 2.5); else fitAll();
-    }, true);
-    document.getElementById('zIn').onclick = function () { var v = view(); zoomAt(v.w / 2, v.h / 2, 1.4); };
-    document.getElementById('zOut').onclick = function () { var v = view(); zoomAt(v.w / 2, v.h / 2, 1 / 1.4); };
-    document.getElementById('zFit').onclick = fitAll;
-    // inside a slide: hand the slide-navigation keys to the editor / presenter, which sit outside this frame
+    }
+    load().then(function () { fit(false); setInterval(poll2, 2000); }).catch(function (e) { document.body.textContent = 'Could not load the diagram: ' + e.message; });
+    function poll2() {
+      fetch('/api/canvas/mtime?file=' + encodeURIComponent(name), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (r) {
+        if (baseMtime != null && Math.abs(r.mtime - baseMtime) > 1) { var s0 = [z, tx, ty]; load().then(function () { z = s0[0]; tx = s0[1]; ty = s0[2]; apply(); }); }
+      }).catch(function () {});
+    }
+    window.addEventListener('resize', function () { fit(false); });
+    box.addEventListener('wheel', function (e) { e.preventDefault(); var d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; zoomAt(e.clientX, e.clientY, Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0018)), false); }, { passive: false });
+    box.addEventListener('pointerdown', function (e) { box.setPointerCapture(e.pointerId); lastM = [e.clientX, e.clientY]; box.style.cursor = 'grabbing'; cancelAnimationFrame(anim); });
+    box.addEventListener('pointermove', function (e) { if (!lastM) return; tx += e.clientX - lastM[0]; ty += e.clientY - lastM[1]; lastM = [e.clientX, e.clientY]; apply(); });
+    function up() { lastM = null; box.style.cursor = 'grab'; }
+    box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+    box.addEventListener('dblclick', function (e) { e.preventDefault(); if (z > fz * 1.4) fit(true); else zoomAt(e.clientX, e.clientY, 2.6, true); });
+    document.getElementById('zIn').onclick = function () { zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1.4, true); };
+    document.getElementById('zOut').onclick = function () { zoomAt(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.4, true); };
+    document.getElementById('zFit').onclick = function () { fit(true); };
+    // hand the slide-navigation keys to the editor / presenter, which sit outside this frame
     document.addEventListener('keydown', function (e) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === '0') { fitAll(); return; }
+      if (e.key === '0') { fit(true); return; }
       if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Escape'].indexOf(e.key) >= 0) {
         e.preventDefault(); e.stopPropagation();
         window.top.postMessage({ redpen: 'key', key: e.key }, location.origin);

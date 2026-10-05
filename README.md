@@ -56,7 +56,7 @@ node editor/editor-server.js projects/my-board               # open http://127.0
 
 ### Diagram slides
 
-A slide can hold a live diagram. In the editor and when presenting, you can pan and zoom it (drag, pinch or Ctrl/⌘+scroll, or use the **−  Fit  +** buttons). The arrow keys still change slides.
+A slide can hold a live diagram. The diagram fills the slide. In the editor and when presenting, scroll or pinch to zoom at the cursor, drag to pan, and double-click a box or region to zoom to it (double-click empty space, press 0 or click **Fit** to zoom back out). The arrow keys still change slides.
 
 ```sh
 node tools/new-canvas-slide.js projects/my-project 04-architecture "How it fits together" architecture

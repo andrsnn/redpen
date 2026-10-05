@@ -2,7 +2,7 @@
 // Build an Excalidraw scene (.excalidraw JSON) from a few calls.
 //
 //   const { Scene } = require('./canvas-dsl');
-//   const s = new Scene();
+//   const s = new Scene();            // or new Scene({ clean: true }) for straight lines and a plain font
 //   s.zone('z1', { x: 0, y: 0, w: 1200, h: 700, title: '1 · Overview', color: 'blue' });
 //   s.box('a', { x: 60, y: 120, w: 240, h: 90, text: 'Client', color: 'blue' });
 //   s.box('b', { x: 500, y: 120, w: 240, h: 90, text: 'Server', color: 'green' });
@@ -51,7 +51,7 @@ const measure = (text, fs_) => {
 };
 
 class Scene {
-  constructor() { this.els = []; this.byId = {}; this.problems = []; this.boxes = []; }
+  constructor(opts = {}) { this.els = []; this.byId = {}; this.problems = []; this.boxes = []; this.rough = opts.clean ? 0 : 1; this.font = opts.clean ? 2 : FONT; }
 
   _base(type, id, x, y, w, h, o = {}) {
     const [stroke, bg] = COLORS[o.color || 'white'] || COLORS.white;
@@ -60,7 +60,7 @@ class Scene {
       strokeColor: o.stroke || stroke,
       backgroundColor: o.fill === false ? 'transparent' : (o.fill || bg),
       fillStyle: 'solid', strokeWidth: o.strokeWidth || 2, strokeStyle: o.dashed ? 'dashed' : 'solid',
-      roughness: o.roughness == null ? 1 : o.roughness, opacity: 100,
+      roughness: o.roughness == null ? this.rough : o.roughness, opacity: 100,
       groupIds: [], frameId: null, roundness: o.round === false ? null : { type: 3 },
       seed: nextSeed(), version: 1, versionNonce: nextSeed(), isDeleted: false,
       boundElements: [], updated: 1, link: null, locked: !!o.locked,
@@ -73,7 +73,7 @@ class Scene {
     const el = this._base('text', id, x, y, o.w || m.w, o.h || m.h, { color: o.color || 'white', fill: false, round: false, locked: o.locked });
     Object.assign(el, {
       strokeColor: o.stroke || (COLORS[o.color || 'white'] || COLORS.white)[0],
-      text, originalText: text, fontSize: fs_, fontFamily: FONT, textAlign: o.align || 'left',
+      text, originalText: text, fontSize: fs_, fontFamily: this.font, textAlign: o.align || 'left',
       verticalAlign: o.valign || 'top', containerId: o.containerId || null, lineHeight: LINE_H,
       baseline: Math.round(fs_ * 0.9), roundness: null,
     });

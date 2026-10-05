@@ -17,11 +17,11 @@ if (fs.existsSync(out)) { console.error(out + ' already exists'); process.exit(1
 const num = slug.slice(0, 2);
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const tpl = fs.readFileSync(path.join(__dirname, '..', 'template', 'slide.html'), 'utf8');
-const css = '  .dia{left:64px;top:152px;width:1152px;height:500px;border:1px solid #e2e5ea;border-radius:16px;overflow:hidden;background:#fff}\n  .dia iframe{width:100%;height:100%;border:0;display:block}\n';
+const css = '  .dia{left:0;top:0;width:1280px;height:720px;background:#fff}\n  .dia iframe{width:100%;height:100%;border:0;display:block}\n  .eyebrow,.title,.flow,.pageno{pointer-events:none}\n';
 const body =
+  '  <div class="abs dia"><iframe src="/canvas?file=' + name + '&embed=1&inset=120" title="' + esc(title) + '"></iframe></div>\n' +
   '  <div class="abs eyebrow">Diagram</div>\n' +
   '  <div class="abs title">' + esc(title) + '</div>\n' +
-  '  <div class="abs dia"><iframe src="/canvas?file=' + name + '&embed=1" title="' + esc(title) + '"></iframe></div>\n' +
   '  <div class="abs flow">' + num + ' · Diagram</div>\n' +
   '  <div class="abs pageno">' + num + '</div>';
 const html = tpl

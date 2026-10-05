@@ -14,11 +14,14 @@
   #bar button:hover{background:#eef0f3}
   #status{color:#8a929e;padding:0 8px;min-width:90px}
   body.embed #bar{display:none}
+  body.embed .layer-ui__wrapper, body.embed .excalidraw .App-menu, body.embed .excalidraw .zoom-actions, body.embed .excalidraw .help-icon, body.embed .excalidraw .welcome-screen-center{display:none!important}
+  body.embed .excalidraw, body.embed .excalidraw canvas{cursor:grab}
+  body.embed .excalidraw canvas:active{cursor:grabbing}
   #zoombar{display:none;position:fixed;z-index:20;right:12px;bottom:12px;gap:4px;background:#fff;border:1px solid #d0d4da;border-radius:10px;padding:4px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
   body.embed #zoombar{display:flex}
   #zoombar button{border:0;background:none;min-width:32px;height:30px;border-radius:7px;cursor:pointer;font:600 15px -apple-system,Arial,sans-serif;color:#232a33}
   #zoombar button:hover{background:#eef0f3}
-  #zoomhint{display:none;position:fixed;z-index:20;left:12px;bottom:14px;font:12px -apple-system,Arial,sans-serif;color:#8a929e;pointer-events:none}
+  #zoomhint{display:none;position:fixed;z-index:20;left:12px;bottom:14px;font:12px -apple-system,Arial,sans-serif;color:#8a929e;pointer-events:none;transition:opacity .8s}
   body.embed #zoomhint{display:block}
   #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#58616d;font-size:15px;text-align:center;padding:24px}
 </style>
@@ -26,7 +29,7 @@
 <body>
 <div id="bar"><span id="tabs"></span><span id="status"></span><span id="actions"></span></div>
 <div id="zoombar"><button id="zOut" title="Zoom out">−</button><button id="zFit" title="Fit the whole diagram">Fit</button><button id="zIn" title="Zoom in">+</button></div>
-<div id="zoomhint">Drag to pan · pinch or Ctrl/⌘+scroll to zoom</div>
+<div id="zoomhint">Scroll to zoom · drag to pan · double-click to focus</div>
 <div id="root"></div>
 <div id="msg">Loading canvas…</div>
 <script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
@@ -86,7 +89,7 @@
       api.updateScene({ elements: ExcalidrawLib.restoreElements(scene.elements || [], null), appState: { viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || '#ffffff' } });
       var f = Object.keys(scene.files || {}).map(function (k) { return scene.files[k]; });
       if (f.length) api.addFiles(f);
-      setTimeout(function () { api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
+      setTimeout(function () { if (embed) { fitNow(); } else api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
     }).catch(function (e) { setStatus('Load failed'); console.error(e); });
   }
 
@@ -127,23 +130,70 @@
     }));
   }).catch(function (e) { msg.textContent = 'Could not list canvases: ' + e.message; });
 
-  function zoomBy(f) {
-    if (!api) return;
-    var st = api.getAppState(), z = st.zoom.value, nz = Math.max(0.1, Math.min(8, z * f));
-    var w = st.width, hgt = st.height;
-    api.updateScene({ appState: { zoom: { value: nz }, scrollX: st.scrollX + (w / 2) / nz - (w / 2) / z, scrollY: st.scrollY + (hgt / 2) / nz - (hgt / 2) / z } });
+  function fitNow() { var els = api.getSceneElements(); if (!els.length) return; var bb = ExcalidrawLib.getCommonBounds(els), v = view(), freeH = v.h - inset, z = clampZ(Math.min(v.w * 0.92 / (bb[2] - bb[0]), freeH * 0.92 / (bb[3] - bb[1]), 2)); setView(z, v.w / 2 / z - (bb[0] + bb[2]) / 2, (inset + freeH / 2) / z - (bb[1] + bb[3]) / 2); }
+  // ---- embedded in a slide: a map-like view (wheel zooms at the cursor, drag pans, double-click focuses) ----
+  var inset = Number(qs.get('inset')) || 0, anim = null;
+  function view() { var st = api.getAppState(); return { z: st.zoom.value, sx: st.scrollX, sy: st.scrollY, w: st.width, h: st.height }; }
+  function setView(z, sx, sy) { api.updateScene({ appState: { zoom: { value: z }, scrollX: sx, scrollY: sy } }); }
+  function clampZ(z) { return Math.max(0.15, Math.min(6, z)); }
+  function animateTo(z, sx, sy) {
+    var v = view(), t0 = performance.now(), dur = 380;
+    cancelAnimationFrame(anim);
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      setView(v.z + (z - v.z) * e, v.sx + (sx - v.sx) * e, v.sy + (sy - v.sy) * e);
+      if (k < 1) anim = requestAnimationFrame(step);
+    })(t0);
   }
-  document.getElementById('zIn').onclick = function () { zoomBy(1.3); };
-  document.getElementById('zOut').onclick = function () { zoomBy(1 / 1.3); };
-  document.getElementById('zFit').onclick = function () { if (api) api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: true }); };
-  // inside a slide: hand the slide-navigation keys to the editor / presenter, which sit outside this frame
-  if (embed) document.addEventListener('keydown', function (e) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Escape'].indexOf(e.key) >= 0) {
+  // zoom and scroll that put the box [x0,y0,x1,y1] in the middle of the free area, filling `fill` of it
+  function focusOn(x0, y0, x1, y1, fill, maxZ) {
+    var v = view(), bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0), freeH = v.h - inset;
+    var z = clampZ(Math.min(v.w * fill / bw, freeH * fill / bh, maxZ || 6));
+    animateTo(z, v.w / 2 / z - (x0 + x1) / 2, (inset + freeH / 2) / z - (y0 + y1) / 2);
+  }
+  function fitAll() {
+    var els = api.getSceneElements().filter(function (e) { return !e.isDeleted; });
+    if (!els.length) return;
+    var bb = ExcalidrawLib.getCommonBounds(els);
+    focusOn(bb[0], bb[1], bb[2], bb[3], 0.92, 2);
+  }
+  function zoomAt(px, py, f) {
+    var v = view(), nz = clampZ(v.z * f), sp = [px / v.z - v.sx, py / v.z - v.sy];
+    cancelAnimationFrame(anim);
+    setView(nz, px / nz - sp[0], py / nz - sp[1]);
+  }
+  if (embed) {
+    document.addEventListener('wheel', function (e) {
+      if (!api) return;
       e.preventDefault(); e.stopPropagation();
-      window.top.postMessage({ redpen: 'key', key: e.key }, location.origin);
-    }
-  }, true);
+      var d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      zoomAt(e.clientX, e.clientY, Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0018)));
+    }, { passive: false, capture: true });
+    document.addEventListener('dblclick', function (e) {
+      if (!api) return;
+      var v = view(), x = e.clientX / v.z - v.sx, y = e.clientY / v.z - v.sy, best = null, area = Infinity;
+      api.getSceneElements().forEach(function (el) {
+        if (el.isDeleted || el.type === 'text' || el.type === 'arrow' || el.type === 'line') return;
+        if (x < el.x || x > el.x + el.width || y < el.y || y > el.y + el.height) return;
+        var a = el.width * el.height; if (a < area) { area = a; best = el; }
+      });
+      e.preventDefault(); e.stopPropagation();
+      if (best) focusOn(best.x, best.y, best.x + best.width, best.y + best.height, 0.6, 2.5); else fitAll();
+    }, true);
+    document.getElementById('zIn').onclick = function () { var v = view(); zoomAt(v.w / 2, v.h / 2, 1.4); };
+    document.getElementById('zOut').onclick = function () { var v = view(); zoomAt(v.w / 2, v.h / 2, 1 / 1.4); };
+    document.getElementById('zFit').onclick = fitAll;
+    // inside a slide: hand the slide-navigation keys to the editor / presenter, which sit outside this frame
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === '0') { fitAll(); return; }
+      if (['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Escape'].indexOf(e.key) >= 0) {
+        e.preventDefault(); e.stopPropagation();
+        window.top.postMessage({ redpen: 'key', key: e.key }, location.origin);
+      }
+    }, true);
+    setTimeout(function () { var h = document.getElementById('zoomhint'); if (h) h.style.opacity = '0'; }, 5000);
+  }
   window.addEventListener('beforeunload', function (e) { if (dirty && !conflict) { save(); e.preventDefault(); e.returnValue = ''; } });
   document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
 })();

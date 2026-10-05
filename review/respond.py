@@ -9,6 +9,8 @@
            A reply from the user reopens it.
 --skip-slop  send even if the plain-words check flags a line (for deliberate quotes)
 --slides   slide numbers or file names that changed, so the review page outlines them in yellow
+--canvas   canvas name (for example main) whose text changed: runs the plain-words check on it
+--elements comma list of canvas element ids that changed: the panel selects them when the user clicks the thread
 """
 import json, sys, os, glob, datetime
 
@@ -27,6 +29,17 @@ if status == 'changed' and '--skip-slop' not in args and '--slides' in args:
         for f, line, why in found:
             print('%s: "%s"  <- %s' % (f, line[:140], why), file=sys.stderr)
         print('\nNot sent: %d line(s) on the changed slides are flagged as slop. Rewrite them (run /slop-to-english), or pass --skip-slop for a deliberate quote.' % len(found), file=sys.stderr)
+        sys.exit(1)
+if status == 'changed' and '--skip-slop' not in args and '--canvas' in args:
+    import importlib.util
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location('slop_lint', os.path.join(here, '..', 'tools', 'slop-lint.py'))
+    lint = importlib.util.module_from_spec(spec); spec.loader.exec_module(lint)
+    found = lint.lint_canvas(deck, args[args.index('--canvas') + 1])
+    if found:
+        for f, line, why in found:
+            print('%s: "%s"  <- %s' % (f, line[:140], why), file=sys.stderr)
+        print('\nNot sent: %d canvas line(s) are flagged as slop. Rewrite them (run /slop-to-english), or pass --skip-slop for a deliberate quote.' % len(found), file=sys.stderr)
         sys.exit(1)
 state_file = os.path.join(deck, 'review', 'state.json')
 st = json.load(open(state_file)) if os.path.exists(state_file) else {}
@@ -48,6 +61,8 @@ if '--slides' in args:
         m = sorted(glob.glob(os.path.join(deck, 'slides', (s if s.endswith('.html') else s + '-*.html'))))
         files += [os.path.basename(x) for x in m]
     cur['slides'] = files
+if '--elements' in args:
+    cur['elements'] = [x.strip() for x in args[args.index('--elements') + 1].split(',') if x.strip()]
 if status != 'addressed':
     cur.pop('doneAt', None)
 st[cid] = cur

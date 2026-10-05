@@ -33,5 +33,5 @@ while True:
     for cid, c in read().items():
         if cid not in seen:
             seen.add(cid)
-            print('NEW COMMENT', cid, '|', c.get('slide', ''), '| quote:', c.get('quote', '')[:200].replace('\n', ' '), '| comment:', c['comment'], flush=True)
+            print('NEW COMMENT', cid, '|', c.get('slide', ''), '| quote:', c.get('quote', '')[:200].replace('\n', ' '), '| elements:', ','.join((c.get('anchor') or {}).get('ids', [])), '| comment:', c['comment'], flush=True)
     time.sleep(1)

@@ -13,7 +13,7 @@
   #bar button.on{background:#dde6fb;font-weight:600}
   #bar button:hover{background:#eef0f3}
   #status{color:#8a929e;padding:0 8px;min-width:90px}
-  body.embed #bar{display:none}
+  body.embed #bar, body.embed #cpanel, body.embed #pins, body.embed #cdlg{display:none!important}
   body.embed .layer-ui__wrapper, body.embed .excalidraw .App-menu, body.embed .excalidraw .zoom-actions, body.embed .excalidraw .help-icon, body.embed .excalidraw .welcome-screen-center{display:none!important}
   body.embed .excalidraw, body.embed .excalidraw canvas{cursor:grab}
   body.embed .excalidraw canvas:active{cursor:grabbing}
@@ -24,13 +24,42 @@
   #zoomhint{display:none;position:fixed;z-index:20;left:12px;bottom:14px;font:12px -apple-system,Arial,sans-serif;color:#8a929e;pointer-events:none;transition:opacity .8s}
   body.embed #zoomhint{display:block}
   #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#58616d;font-size:15px;text-align:center;padding:24px}
+
+  #cpanel{position:fixed;z-index:15;right:0;top:0;bottom:0;width:340px;background:#fff;border-left:1px solid #d0d4da;overflow:auto;padding:56px 12px 24px;display:none;font-size:13px;color:#232a33}
+  #cpanel.on{display:block}
+  #cpanel h2{font-size:15px;margin:0 0 8px}
+  #cpanel .row{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  #cpanel button{border:1px solid #d0d4da;background:#fff;border-radius:7px;padding:4px 9px;cursor:pointer;font:inherit}
+  #cpanel button.pri{background:#3563e3;border-color:#3563e3;color:#fff}
+  .cc{border:1px solid #e2e5ea;border-left:5px solid #3563e3;border-radius:10px;padding:9px 11px;margin-bottom:10px;background:#fafbfc}
+  .cc.changed{border-left-color:#f08c00;background:#fff8ec}
+  .cc.addressed{border-left-color:#3f9168;opacity:.7}
+  .cc.act{outline:2px solid #3563e3}
+  .cc .chip{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#58616d}
+  .cc .q{color:#58616d;font-style:italic;margin:4px 0;overflow-wrap:anywhere}
+  .cc .m{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+  .cc .m b{font-weight:700}
+  .cc textarea{width:100%;box-sizing:border-box;min-height:44px;border:1px solid #d0d4da;border-radius:7px;padding:6px;font:inherit;margin-top:6px}
+  #pins{position:fixed;inset:0;pointer-events:none;z-index:12;overflow:hidden}
+  .pin{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#3563e3;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+  .pin.changed{background:#f08c00}
+  .pin.addressed{background:#3f9168}
+  #cdlg{border:1px solid #d0d4da;border-radius:12px;padding:16px;width:420px;box-shadow:0 8px 30px rgba(0,0,0,.25);position:fixed;margin:0}
+  #cdlg textarea{width:100%;box-sizing:border-box;min-height:110px;border:1px solid #d0d4da;border-radius:8px;padding:8px;font:inherit;font-size:14px}
+  #cdlg p{margin:4px 0 10px;color:#58616d;font-size:13px;overflow-wrap:anywhere}
+  #cdlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  #cdlg button{border:1px solid #d0d4da;background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font:inherit}
+  #cdlg button[type=submit]{background:#3563e3;border-color:#3563e3;color:#fff}
 </style>
 </head>
 <body>
-<div id="bar"><span id="tabs"></span><span id="status"></span><span id="actions"></span></div>
+<div id="bar"><span id="tabs"></span><span id="status"></span><span id="actions"></span><button id="cbtn" title="Show comments">Comments</button><button id="cadd" title="Comment on the selected element (C, or ⌘⌥M while editing text)">+ Comment (C)</button></div>
 <div id="zoombar"><button id="zOut" title="Zoom out">−</button><button id="zFit" title="Fit the whole diagram">Fit</button><button id="zIn" title="Zoom in">+</button></div>
 <div id="zoomhint">Scroll to zoom · drag to pan · double-click to focus</div>
 <div id="root"></div>
+<div id="pins"></div>
+<div id="cpanel"></div>
+<dialog id="cdlg"><form id="cfrm"><h2 style="font-size:16px;margin:0">Add a comment</h2><p id="cctx"></p><textarea id="cinp" required placeholder="What should change?"></textarea><div class="acts"><button type="button" id="ccancel">Cancel</button><button type="submit">Save comment (⌘↵)</button></div></form></dialog>
 <div id="msg">Loading canvas…</div>
 <script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
 <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" integrity="sha384-tMH8h3BGESGckSAVGZ82T9n90ztNXxvdwvdM6UoR56cYcf+0iGXBliJ29D+wZ/x8" crossorigin="anonymous"></script>
@@ -50,7 +79,7 @@
   function save(force) {
     if (!api || !current || loading || (conflict && !force)) return Promise.resolve();
     var s = sceneString();
-    if (s === lastSaved && !force) { dirty = false; return Promise.resolve(); }
+    if (s === lastSaved && !force) { dirty = false; if (!conflict) setStatus('Saved'); return Promise.resolve(); }
     setStatus('Saving…');
     return fetch('/api/canvas/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file: current, scene: JSON.parse(s), baseMtime: baseMtime, force: !!force }) })
@@ -71,6 +100,7 @@
   function clearConflict() { conflict = false; actions.innerHTML = ''; }
 
   function onChange() {
+    if (!embed && !loading && api) renderPins();   // pins follow pan, zoom and edits
     if (embed || loading || !api) return;
     dirty = true; if (!conflict) setStatus('Unsaved');
     clearTimeout(saveTimer); saveTimer = setTimeout(function () { save(); }, 800);
@@ -89,7 +119,7 @@
       api.updateScene({ elements: ExcalidrawLib.restoreElements(scene.elements || [], null), appState: { viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || '#ffffff' } });
       var f = Object.keys(scene.files || {}).map(function (k) { return scene.files[k]; });
       if (f.length) api.addFiles(f);
-      setTimeout(function () { if (embed) { fitNow(); } else api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
+      setTimeout(function () { if (embed) { fitNow(); } else api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); loadComments(); }, 50);
     }).catch(function (e) { setStatus('Load failed'); console.error(e); });
   }
 
@@ -114,6 +144,145 @@
       if (dirty) showConflict(); else loadScene(current);
     }).catch(function () {});
   }
+
+
+  // ───────────── comments: same threads as the slide editor, anchored to elements ─────────────
+  var comments = [], activeId = null, panelOn = false, hideRes = true, expanded = {};
+  var panel = document.getElementById('cpanel'), pinsEl = document.getElementById('pins'), dlg = document.getElementById('cdlg'), cinp = document.getElementById('cinp');
+  var JH = { 'Content-Type': 'application/json' };
+  var STATUS = { open: 'Waiting on Claude', changed: 'To review', addressed: 'Resolved' };
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) { if (k === 'text') n.textContent = props[k]; else if (k.slice(0, 2) === 'on') n[k] = props[k]; else n.setAttribute(k, props[k]); });
+    (kids || []).forEach(function (c) { n.appendChild(c); });
+    return n;
+  }
+  function post(url, body) { return fetch(url, { method: 'POST', headers: JH, body: JSON.stringify(body) }).then(function (r) { if (!r.ok) throw new Error(r.status); }); }
+  function mine() { return comments.filter(function (c) { return c.slide === 'canvas/' + current && c.status !== 'archived'; }); }
+  function visible() { return mine().filter(function (c) { return !(hideRes && c.status === 'addressed'); }).sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); }); }
+  function loadComments() {
+    return fetch('/comments', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) { comments = d; render(); }).catch(function () {});
+  }
+  function byIdMap() { var m = {}; api.getSceneElements().forEach(function (e) { m[e.id] = e; }); return m; }
+  function labelOf(e, m) {
+    if (!e) return '';
+    if (e.type === 'text') return e.text;
+    var t = (e.boundElements || []).filter(function (b) { return b.type === 'text'; })[0];
+    return t && m[t.id] ? m[t.id].text : '';
+  }
+
+  function capture() {
+    var st0 = api.getAppState(), sel = Object.assign({}, st0.selectedElementIds || {}), m = byIdMap(), seen = {}, ids = [];
+    if (st0.editingElement) sel[st0.editingElement.id] = true;   // while editing text, comment on that element
+    Object.keys(sel).filter(function (k) { return sel[k]; }).forEach(function (k) {
+      var e = m[k]; if (!e) return;
+      var id = e.containerId && m[e.containerId] ? e.containerId : k;
+      if (!seen[id]) { seen[id] = 1; ids.push(id); }
+    });
+    var quote = ids.slice(0, 3).map(function (id) { var e = m[id], t = labelOf(e, m).replace(/\s+/g, ' ').trim(); return t || (e ? e.type : ''); }).join(' / ').slice(0, 200);
+    return { ids: ids.slice(0, 10), quote: quote };
+  }
+  var target = { ids: [], quote: '' };
+  function openDlg() {
+    if (dlg.open || !api || !current || loading) return;
+    target = capture();
+    document.getElementById('cctx').textContent = 'Canvas ' + current + (target.quote ? ' · “' + target.quote + '”' : ' · general comment (select an element first to attach it)');
+    cinp.value = '';
+    dlg.showModal();
+    dlg.style.left = Math.max(8, window.innerWidth - 480 - (panelOn ? 340 : 0)) + 'px'; dlg.style.top = Math.max(8, window.innerHeight - 330) + 'px';
+    cinp.focus({ preventScroll: true });
+  }
+  document.getElementById('cadd').onclick = openDlg;
+  document.getElementById('ccancel').onclick = function () { dlg.close(); };
+  cinp.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); document.getElementById('cfrm').requestSubmit(); } });
+  document.getElementById('cfrm').addEventListener('submit', function (e) {
+    e.preventDefault(); var body = cinp.value.trim(); if (!body) return;
+    var c = { id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), slide: 'canvas/' + current, quote: target.quote, comment: body, at: new Date().toISOString(), anchor: { ids: target.ids } };
+    dlg.close(); if (!conflict) setStatus('Sending comment…');
+    post('/comment', c).then(function () { if (!conflict) setStatus('Comment sent to Claude'); activeId = c.id; panelOn = true; loadComments(); }).catch(function () { setStatus('Could not send the comment'); });
+  });
+  window.addEventListener('keydown', function (e) {
+    if (embed) return;
+    var t = e.target, typing = t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+    if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'KeyM' || e.key.toLowerCase() === 'm') && !dlg.open) { e.preventDefault(); e.stopPropagation(); openDlg(); return; }   // works while editing text
+    if (embed) return;
+    if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !typing) { e.preventDefault(); e.stopPropagation(); openDlg(); }
+  }, true);
+
+  function focusThread(c) {
+    var ids = (c.elements && c.elements.length) ? c.elements : ((c.anchor && c.anchor.ids) || []);
+    var els = api.getSceneElements().filter(function (e) { return ids.indexOf(e.id) >= 0; });
+    if (!els.length) return;
+    var sel = {}; els.forEach(function (e) { sel[e.id] = true; });
+    var x0 = Math.min.apply(null, els.map(function (e) { return e.x; })), y0 = Math.min.apply(null, els.map(function (e) { return e.y; }));
+    var x1 = Math.max.apply(null, els.map(function (e) { return e.x + e.width; })), y1 = Math.max.apply(null, els.map(function (e) { return e.y + e.height; }));
+    var vw = window.innerWidth - (panelOn ? 340 : 0), vh = window.innerHeight;
+    var z = Math.max(0.1, Math.min(1, vw * 0.7 / Math.max(1, x1 - x0), vh * 0.7 / Math.max(1, y1 - y0)));   // never zoom in past 100%
+    api.updateScene({ appState: { selectedElementIds: sel, zoom: { value: z }, scrollX: vw / 2 / z - (x0 + x1) / 2, scrollY: vh / 2 / z - (y0 + y1) / 2 } });
+  }
+
+  function threadCard(c) {
+    var open = !!expanded[c.id] || c.id === activeId || c.status !== 'addressed';
+    var card = el('div', { 'class': 'cc ' + c.status + (c.id === activeId ? ' act' : '') });
+    var head = el('div', { 'class': 'chip', text: STATUS[c.status] || c.status, style: 'cursor:pointer' });
+    head.onclick = function () { activeId = c.id; expanded[c.id] = !open; render(); focusThread(c); };
+    card.appendChild(head);
+    if (c.quote) card.appendChild(el('div', { 'class': 'q', text: '“' + c.quote + '”' }));
+    var msgs = [{ from: 'you', text: c.comment, at: c.at }].concat(c.thread || []);
+    (open ? msgs : msgs.slice(-1)).forEach(function (m) {
+      card.appendChild(el('div', { 'class': 'm' }, [el('b', { text: (m.from === 'claude' ? 'Claude' + (m.kind === 'change' ? ' · changed' : '') : 'You') + ': ' }), document.createTextNode(m.text)]));
+    });
+    if (open) {
+      var ta = el('textarea', { placeholder: 'Reply (⌘↵ to send)' });
+      var send = function () { var t = ta.value.trim(); if (!t) return; post('/reply', { id: c.id, text: t, at: new Date().toISOString() }).then(function () { activeId = c.id; loadComments(); }).catch(function () { setStatus('Could not send the reply'); }); };
+      ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } });
+      var row = el('div', { 'class': 'row', style: 'margin:6px 0 0' }, [
+        el('button', { 'class': 'pri', text: 'Reply', onclick: send }),
+        el('button', { text: c.status === 'addressed' ? 'Reopen' : 'Resolve', onclick: function () { post('/status', { id: c.id, status: c.status === 'addressed' ? 'open' : 'addressed' }).then(loadComments); } }),
+      ]);
+      card.appendChild(ta); card.appendChild(row);
+    }
+    return card;
+  }
+
+  function render() {
+    var all = mine(), nrev = all.filter(function (c) { return c.status === 'changed'; }).length, nopen = all.filter(function (c) { return c.status === 'open'; }).length;
+    var btn = document.getElementById('cbtn');
+    btn.textContent = 'Comments' + (nrev + nopen ? ' (' + (nrev + nopen) + ')' : ''); btn.className = panelOn ? 'on' : '';
+    panel.className = panelOn ? 'on' : '';
+    panel.innerHTML = '';
+    var chk = el('input', { type: 'checkbox' }); chk.checked = hideRes; chk.onchange = function () { hideRes = chk.checked; render(); };
+    panel.appendChild(el('h2', { text: 'Comments on ' + (current || '') }));
+    panel.appendChild(el('div', { 'class': 'row' }, [
+      el('span', { text: (nrev ? nrev + ' to review · ' : '') + nopen + ' waiting on Claude' }),
+      el('label', {}, [chk, document.createTextNode(' hide resolved')]),
+    ]));
+    var list = visible();
+    if (!list.length) panel.appendChild(el('div', { text: all.length ? 'All threads resolved.' : 'No comments yet. Select an element and press C.', style: 'color:#8a929e' }));
+    list.forEach(function (c) { panel.appendChild(threadCard(c)); });
+    renderPins();
+  }
+
+  var pinRaf = 0;
+  function renderPins() {
+    if (pinRaf) return;
+    pinRaf = requestAnimationFrame(function () {
+      pinRaf = 0; pinsEl.innerHTML = '';
+      if (!api || loading) return;
+      var m = byIdMap(), st = api.getAppState();
+      visible().forEach(function (c, i) {
+        var ids = (c.anchor && c.anchor.ids) || [], e = null;
+        for (var k = 0; k < ids.length && !e; k++) e = m[ids[k]] && !m[ids[k]].isDeleted ? m[ids[k]] : null;
+        if (!e) return;
+        var p = ExcalidrawLib.sceneCoordsToViewportCoords({ sceneX: e.x + e.width, sceneY: e.y }, st);
+        var pin = el('div', { 'class': 'pin ' + c.status, text: String(i + 1), style: 'left:' + p.x + 'px;top:' + p.y + 'px', title: c.comment.slice(0, 80) });
+        pin.onclick = function () { activeId = c.id; panelOn = true; expanded[c.id] = true; render(); };
+        pinsEl.appendChild(pin);
+      });
+    });
+  }
+  document.getElementById('cbtn').onclick = function () { panelOn = !panelOn; render(); };
+  try { var es = new EventSource('/events'); es.onmessage = function (m) { if (m.data === 'comments') loadComments(); }; } catch (e) {}
 
   fetch('/api/canvas/list').then(function (r) { return r.json(); }).then(function (r) {
     files = r.files;

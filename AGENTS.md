@@ -27,7 +27,7 @@ The user then flips between the main page and its variants with the arrow keys, 
 
 ## Canvas projects
 
-When the user wants one large diagram instead of pages, make a canvas: `node tools/new-canvas.js projects/<name> "<Title>"`, then write the scene with `tools/canvas-dsl.js` (see its header for the calls). Run your script again to regenerate. If the user has moved things in the browser, edit the `.excalidraw` JSON instead of regenerating, so their layout stays. Fix every problem `save()` prints (overlaps, text that does not fit). Do not report a canvas as done from the script output alone: ask the user to look, or render it if they allow it.
+When the user wants one large diagram instead of pages, make a canvas: `node tools/new-canvas.js projects/<name> "<Title>"`, then write the scene with `tools/canvas-dsl.js` (see its header for the calls). Run your script again to regenerate. If the user has moved things in the browser, edit the `.excalidraw` JSON instead of regenerating, so their layout stays. Fix every problem `save()` prints (overlaps, text that does not fit). Comments on a canvas arrive with `canvas/<name>` as the page and an `elements:` list from `watch-comments.py`. Answer them with `respond.py ... --canvas <name> --elements <ids>`. Do not report a canvas as done from the script output alone: ask the user to look, or render it if they allow it.
 
 ## Rules
 

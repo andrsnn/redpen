@@ -50,6 +50,23 @@ def lint_files(deck, files):
                     found.append((os.path.basename(f), line, 'a symbol or dash a speaker cannot say'))
     return found
 
+def lint_canvas(deck, name):
+    """Check the text of canvas/<name>.excalidraw the same way as slide text."""
+    import json
+    phrases = load_phrases()
+    path = os.path.join(deck, 'canvas', name + '.excalidraw')
+    found = []
+    for e in json.load(open(path, encoding='utf-8')).get('elements', []):
+        if e.get('type') != 'text' or e.get('isDeleted'):
+            continue
+        for line in (re.sub(r'\s+', ' ', t).strip() for t in e.get('text', '').split('\n')):
+            for rx in phrases:
+                m = rx.search(line)
+                if m:
+                    found.append((name + '.excalidraw', line, m.group(0)))
+                    break
+    return found
+
 def resolve(deck, specs):
     files = []
     for s in specs:

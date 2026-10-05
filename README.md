@@ -52,7 +52,7 @@ node editor/editor-server.js projects/my-board               # open http://127.0
 - It is real Excalidraw (loaded from unpkg.com, so it needs a network connection). Edits save to the file after a short pause, and timestamped copies of earlier versions are kept in `canvas/.bak/` (newest 40). If an agent rewrites the file while you have unsaved edits, the page asks whether to keep yours or load the disk version.
 - The files are standard `.excalidraw` JSON, so they also open at excalidraw.com.
 - An agent builds scenes with `tools/canvas-dsl.js`: `zone`, `box`, `note`, `text` and `arrow`. Labels are bound to their boxes and arrows to their boxes, so dragging a box moves both. `save()` reports overlapping boxes. If the agent rewrites the file while you are not editing, the page reloads it.
-- Comments and variants are for pages and do not work on a canvas yet.
+- Comments work like they do on pages: select an element and press **C** (or **⌘⌥M** while editing its text), type, press ⌘↵. Threads show in a side panel with numbered pins on the elements, and replies, resolve and reopen work the same. The agent answers with `respond.py <project> <comment-id> changed "<what changed>" --change --canvas main --elements <ids>`, which also runs the plain-words check on the canvas text. `watch-comments.py` prints the element ids with each comment. Variants are for pages only (V is Excalidraw's select tool).
 
 ### Diagram slides
 

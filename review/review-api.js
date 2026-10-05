@@ -44,6 +44,11 @@ exports.create = function create({ deck, port }) {
     q.on('data', c => { n += c.length; if (n > max) { rej(new Error('too big')); q.destroy(); } else a.push(c); });
     q.on('end', () => res(Buffer.concat(a))); q.on('error', rej);
   });
+  // canvas comments point at elements: { ids: [element ids], } (at most 10 short strings)
+  const cleanAnchor = a => {
+    const ids = a && Array.isArray(a.ids) ? a.ids.filter(x => typeof x === 'string' && /^[\w-]{1,80}$/.test(x)).slice(0, 10) : [];
+    return ids.length ? { anchor: { ids } } : {};
+  };
   const json = (r, code, obj) => { r.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); r.end(JSON.stringify(obj)); };
 
   // live events: slide files changed, comments changed
@@ -75,9 +80,9 @@ exports.create = function create({ deck, port }) {
       try {
         if (q.method === 'POST' && !okOrigin(q)) { r.writeHead(403); r.end('forbidden'); return; }
         if (q.method === 'POST' && u === '/comment') {
-          const { id, slide, quote, comment, at } = JSON.parse((await body(q, 200000)).toString());
+          const { id, slide, quote, comment, at, anchor } = JSON.parse((await body(q, 200000)).toString());
           if (!String(comment || '').trim()) throw new Error('empty');
-          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), comment: String(comment).trim().slice(0, 40000), at: at || new Date().toISOString() }) + '\n');
+          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), comment: String(comment).trim().slice(0, 40000), at: at || new Date().toISOString(), ...cleanAnchor(anchor) }) + '\n');
           r.writeHead(200); r.end('ok'); return;
         }
         if (q.method === 'POST' && u === '/reply') {

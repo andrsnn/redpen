@@ -990,7 +990,7 @@ init();
   byId('cmic').onclick = () => toggleMic('dialog', () => inp);
 
   // ---- data and live reload
-  function load() { return fetch('/comments', { cache: 'no-store' }).then((r) => r.json()).then((d) => { comments = d; render(); }).catch(() => { panel.innerHTML = '<div class="more">Comment server not available.</div>'; }); }
+  function load() { return fetch('/comments', { cache: 'no-store' }).then((r) => r.json()).then((d) => { comments = d.filter((c) => !/^canvas\//.test(c.slide || '')); render(); }).catch(() => { panel.innerHTML = '<div class="more">Comment server not available.</div>'; }); }
   const _bl = buildList; buildList = function () { _bl(); markReview(); };
   const _save = save; save = async function () { lastSave = Date.now(); return _save.apply(this, arguments); };
   async function refreshFiles() {

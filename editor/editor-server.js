@@ -1,7 +1,8 @@
 // Slide editor server for any deck folder (Chrome).
 //   node editor/editor-server.js <deckDir>          → http://127.0.0.1:8137/
 //   node editor/editor-server.js <deckDir> 8200     → custom port
-// <deckDir> holds slides/*.html (and optional options/*.html).
+// <deckDir> holds slides/*.html (and optional options/*.html) and/or canvas/*.excalidraw.
+// A canvas is one big Excalidraw board: open http://127.0.0.1:8137/canvas (it is the home page when there are no slides).
 // Serves the deck + editor.html and writes edited slides back in place.
 'use strict';
 const http = require('http');
@@ -11,7 +12,9 @@ const path = require('path');
 const ROOT = path.resolve(process.argv[2] || '.'); // the deck folder
 const PORT = Number(process.argv[3]) || 8137;
 const EDITOR_HTML = path.join(__dirname, 'editor.html');
-if (!fs.existsSync(path.join(ROOT, 'slides'))) { console.error('No slides/ folder in ' + ROOT); process.exit(1); }
+const CANVAS_HTML = path.join(__dirname, 'canvas.html');
+const HAS_SLIDES = fs.existsSync(path.join(ROOT, 'slides'));
+if (!HAS_SLIDES && !fs.existsSync(path.join(ROOT, 'canvas'))) { console.error('No slides/ or canvas/ folder in ' + ROOT); process.exit(1); }
 const HOST = '127.0.0.1';
 const review = require('../review/review-api.js').create({ deck: ROOT, port: PORT });
 // EDITOR_ALLOWED_HOSTS=name.ts.net (comma list) lets a tailnet / reverse-proxy host post too.
@@ -121,6 +124,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.excalidraw': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -147,6 +151,16 @@ function listSlides() {
   return out;
 }
 
+function listCanvases() {
+  const dir = path.join(ROOT, 'canvas');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.excalidraw')).map((f) => f.slice(0, -'.excalidraw'.length)).sort();
+}
+// canvas names are plain words only, so a request can never leave canvas/
+function canvasPath(name) {
+  if (typeof name !== 'string' || !/^[\w-]+$/.test(name)) return null;
+  return path.join(ROOT, 'canvas', name + '.excalidraw');
+}
 
 // ---- reorder a main-deck slide: renumber files, <title>, .pageno, flow cues, and review comments ----
 function moveSlide(rel, dir) {
@@ -206,8 +220,41 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && !okPostOrigin(req)) { return send(res, 403, 'forbidden'); }
   if (review.handle(req, res, p)) return;   // comments, replies, status, dictation, live events
 
+  if (req.method === 'GET' && p === '/canvas') {
+    return send(res, 200, fs.readFileSync(CANVAS_HTML), MIME['.html']);
+  }
   if (req.method === 'GET' && (p === '/' || p === '/index.html' || p === '/editor.html')) {
-    return send(res, 200, fs.readFileSync(EDITOR_HTML), MIME['.html']);
+    return send(res, 200, fs.readFileSync(HAS_SLIDES ? EDITOR_HTML : CANVAS_HTML), MIME['.html']);
+  }
+
+  // ---- canvas (Excalidraw scenes in canvas/NAME.excalidraw) ----
+  if (req.method === 'GET' && p === '/api/canvas/list') {
+    return send(res, 200, JSON.stringify({ root: path.basename(ROOT), files: listCanvases() }), MIME['.json']);
+  }
+  if (req.method === 'GET' && (p === '/api/canvas/get' || p === '/api/canvas/mtime')) {
+    const abs = canvasPath(url.searchParams.get('file'));
+    if (!abs || !fs.existsSync(abs)) return send(res, 404, 'no such canvas');
+    if (p === '/api/canvas/mtime') return send(res, 200, JSON.stringify({ mtime: fs.statSync(abs).mtimeMs }), MIME['.json']);
+    return send(res, 200, fs.readFileSync(abs), MIME['.json']);
+  }
+  if (req.method === 'POST' && p === '/api/canvas/save') {
+    let body = '';
+    req.on('data', (c) => { body += c; if (body.length > 20_000_000) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const { file, scene } = JSON.parse(body);
+        const abs = canvasPath(file);
+        if (!abs || !scene || scene.type !== 'excalidraw' || !Array.isArray(scene.elements)) return send(res, 400, 'bad canvas');
+        const out = JSON.stringify(scene, null, 1);
+        if (fs.existsSync(abs) && fs.readFileSync(abs, 'utf8') !== out) { // keep one previous copy
+          fs.mkdirSync(path.join(ROOT, 'canvas', '.bak'), { recursive: true });
+          fs.copyFileSync(abs, path.join(ROOT, 'canvas', '.bak', path.basename(abs)));
+        }
+        fs.writeFileSync(abs, out, 'utf8');
+        return send(res, 200, JSON.stringify({ ok: true, elements: scene.elements.length }), MIME['.json']);
+      } catch (e) { return send(res, 500, 'save failed: ' + e.message, MIME['.json']); }
+    });
+    return;
   }
 
   if (req.method === 'GET' && p === '/api/list') {

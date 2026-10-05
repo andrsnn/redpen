@@ -25,6 +25,10 @@ The editor has a **+ Variant** button (key V). It sends a comment that starts wi
 
 The user then flips between the main page and its variants with the arrow keys, comments on whichever is shown, and presses **Use this version** to swap one in. The old main page is kept as a variant, so nothing is lost. Alt+arrows move between pages.
 
+## Canvas projects
+
+When the user wants one large diagram instead of pages, make a canvas: `node tools/new-canvas.js projects/<name> "<Title>"`, then write the scene with `tools/canvas-dsl.js` (see its header for the calls). Run your script again to regenerate. If the user has moved things in the browser, edit the `.excalidraw` JSON instead of regenerating, so their layout stays. Fix every problem `save()` prints (overlaps, text that does not fit). Do not report a canvas as done from the script output alone: ask the user to look, or render it if they allow it.
+
 ## Rules
 
 - **Facts come only from the user.** Never invent numbers, names, outcomes or quotes. If a page needs a fact you do not have, ask one short question. If you propose something, say it is a guess.

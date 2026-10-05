@@ -15,7 +15,7 @@ exports.create = function create({ deck, port }) {
 
   const rd = (f, d) => { try { return fs.readFileSync(f, 'utf8'); } catch (e) { return d; } };
   const sig = f => { try { return fs.statSync(f).mtimeMs; } catch (e) { return 0; } };
-  const list = () => fs.readdirSync(slidesDir).filter(f => /^[\w-]+\.html$/.test(f)).sort();
+  const list = () => (fs.existsSync(slidesDir) ? fs.readdirSync(slidesDir) : []).filter(f => /^[\w-]+\.html$/.test(f)).sort();
   const readState = () => { try { return JSON.parse(rd(stateFile, '{}')); } catch (e) { return {}; } };
   const writeState = st => fs.writeFileSync(stateFile, JSON.stringify(st, null, 1));
   const readComments = () => {

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas</title>
+<style>
+  html,body,#root{height:100%;margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:#fff}
+  #bar{position:fixed;z-index:20;left:50%;top:10px;transform:translateX(-50%);display:flex;gap:6px;align-items:center;
+       background:#fff;border:1px solid #d0d4da;border-radius:10px;padding:4px 6px;box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:13px}
+  #bar button{border:0;background:none;padding:5px 10px;border-radius:7px;cursor:pointer;font:inherit;color:#232a33}
+  #bar button.on{background:#dde6fb;font-weight:600}
+  #bar button:hover{background:#eef0f3}
+  #status{color:#8a929e;padding:0 8px;min-width:90px}
+  #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#58616d;font-size:15px;text-align:center;padding:24px}
+</style>
+</head>
+<body>
+<div id="bar"><span id="tabs"></span><span id="status"></span></div>
+<div id="root"></div>
+<div id="msg">Loading canvas…</div>
+<script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js"></script>
+<script>
+(function () {
+  var h = React.createElement, msg = document.getElementById('msg'), statusEl = document.getElementById('status');
+  if (!window.ExcalidrawLib) { msg.textContent = 'Could not load Excalidraw from unpkg.com. Check your connection, or open canvas/*.excalidraw at excalidraw.com.'; return; }
+  var current = null, api = null, saveTimer = null, dirty = false, lastSaved = '', loading = false;
+  var fileParam = new URLSearchParams(location.search).get('file');
+
+  function setStatus(t) { statusEl.textContent = t; }
+  function getJSON(u) { return fetch(u, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); }); }
+
+  function sceneString() {
+    return ExcalidrawLib.serializeAsJSON(api.getSceneElements(), api.getAppState(), api.getFiles(), 'local');
+  }
+  function save() {
+    if (!api || !current || loading) return;
+    var s = sceneString();
+    if (s === lastSaved) { dirty = false; return; }
+    setStatus('Saving…');
+    fetch('/api/canvas/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ file: current, scene: JSON.parse(s) }) })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); lastSaved = s; dirty = false; setStatus('Saved'); })
+      .catch(function (e) { setStatus('Save failed'); console.error(e); });
+  }
+  function onChange() {
+    if (loading || !api) return;
+    dirty = true; setStatus('Unsaved');
+    clearTimeout(saveTimer); saveTimer = setTimeout(save, 800);
+  }
+
+  function loadScene(name) {
+    loading = true; current = name; setStatus('Loading…');
+    return getJSON('/api/canvas/get?file=' + encodeURIComponent(name)).then(function (scene) {
+      var els = scene.elements || [];
+      api.updateScene({ elements: ExcalidrawLib.restoreElements(els, null), appState: { viewBackgroundColor: (scene.appState && scene.appState.viewBackgroundColor) || '#ffffff' } });
+      setTimeout(function () { api.scrollToContent(api.getSceneElements(), { fitToViewport: true, animate: false }); lastSaved = sceneString(); loading = false; dirty = false; setStatus('Saved'); }, 50);
+    });
+  }
+
+  function renderTabs(files) {
+    var el = document.getElementById('tabs'); el.innerHTML = '';
+    files.forEach(function (f) {
+      var b = document.createElement('button'); b.textContent = f; b.className = f === current ? 'on' : '';
+      b.onclick = function () { save(); loadScene(f).then(function () { renderTabs(files); history.replaceState(null, '', '?file=' + encodeURIComponent(f)); }); };
+      el.appendChild(b);
+    });
+  }
+
+  // pick up edits the agent makes to the file while no local edits are pending
+  function poll() {
+    if (!current || loading) return;
+    getJSON('/api/canvas/mtime?file=' + encodeURIComponent(current)).then(function (r) {
+      if (poll.last && r.mtime !== poll.last && !dirty) loadScene(current);
+      poll.last = r.mtime;
+    }).catch(function () {});
+  }
+
+  getJSON('/api/canvas/list').then(function (r) {
+    if (!r.files.length) { msg.textContent = 'No canvas/*.excalidraw files in this project. Run: node tools/new-canvas.js <project> "<Title>"'; return; }
+    var first = r.files.indexOf(fileParam) >= 0 ? fileParam : r.files[0];
+    document.title = r.root + ' · canvas';
+    msg.remove();
+    var root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(h(ExcalidrawLib.Excalidraw, {
+      excalidrawAPI: function (a) { api = a; loadScene(first).then(function () { renderTabs(r.files); setInterval(poll, 2000); }); },
+      onChange: onChange,
+      UIOptions: { canvasActions: { loadScene: false } },
+    }));
+  }).catch(function (e) { msg.textContent = 'Could not list canvases: ' + e.message; });
+
+  window.addEventListener('beforeunload', function (e) { if (dirty) { save(); e.preventDefault(); e.returnValue = ''; } });
+  document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
+})();
+</script>
+</body>
+</html>

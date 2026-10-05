@@ -38,6 +38,21 @@ node editor/editor-server.js projects/my-project
 python3 tools/watch-comments.py projects/my-project        # the agent's listener
 ```
 
+## Canvas mode
+
+For a system diagram, a mind map or a whiteboard, use one big Excalidraw board instead of pages.
+
+```sh
+node tools/new-canvas.js projects/my-board "My board"        # makes canvas/main.excalidraw
+node editor/editor-server.js projects/my-board               # open http://127.0.0.1:8137/canvas
+```
+
+- A project can hold `canvas/*.excalidraw` files, with or without `slides/`. With no slides, `/` opens the canvas. Each file is a tab.
+- It is real Excalidraw (loaded from unpkg.com, so it needs a network connection). Edits save to the file after a short pause, and the previous copy is kept in `canvas/.bak/`.
+- The files are standard `.excalidraw` JSON, so they also open at excalidraw.com.
+- An agent builds scenes with `tools/canvas-dsl.js`: `zone`, `box`, `note`, `text` and `arrow`. Labels are bound to their boxes and arrows to their boxes, so dragging a box moves both. `save()` reports overlapping boxes. If the agent rewrites the file while you are not editing, the page reloads it.
+- Comments and variants are for pages and do not work on a canvas yet.
+
 ## Using it with an agent
 
 Open the repo in Claude Code, or another coding agent, and tell it:

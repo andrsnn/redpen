@@ -48,7 +48,7 @@ node editor/editor-server.js projects/my-board               # open http://127.0
 ```
 
 - A project can hold `canvas/*.excalidraw` files, with or without `slides/`. With no slides, `/` opens the canvas. Each file is a tab.
-- It is real Excalidraw (loaded from unpkg.com, so it needs a network connection). Edits save to the file after a short pause, and the previous copy is kept in `canvas/.bak/`.
+- It is real Excalidraw (loaded from unpkg.com, so it needs a network connection). Edits save to the file after a short pause, and timestamped copies of earlier versions are kept in `canvas/.bak/` (newest 40). If an agent rewrites the file while you have unsaved edits, the page asks whether to keep yours or load the disk version.
 - The files are standard `.excalidraw` JSON, so they also open at excalidraw.com.
 - An agent builds scenes with `tools/canvas-dsl.js`: `zone`, `box`, `note`, `text` and `arrow`. Labels are bound to their boxes and arrows to their boxes, so dragging a box moves both. `save()` reports overlapping boxes. If the agent rewrites the file while you are not editing, the page reloads it.
 - Comments and variants are for pages and do not work on a canvas yet.

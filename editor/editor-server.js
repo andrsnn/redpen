@@ -156,6 +156,16 @@ function listCanvases() {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith('.excalidraw')).map((f) => f.slice(0, -'.excalidraw'.length)).sort();
 }
+// timestamped copies in canvas/.bak/, at most one a minute, newest 40 kept
+function backupCanvas(abs) {
+  const dir = path.join(ROOT, 'canvas', '.bak'), base = path.basename(abs, '.excalidraw');
+  fs.mkdirSync(dir, { recursive: true });
+  const mine = fs.readdirSync(dir).filter((f) => f.startsWith(base + '.') && f.endsWith('.excalidraw')).sort();
+  const last = mine[mine.length - 1];
+  if (last && Date.now() - fs.statSync(path.join(dir, last)).mtimeMs < 60000) return;
+  fs.copyFileSync(abs, path.join(dir, base + '.' + new Date().toISOString().replace(/[:.]/g, '-') + '.excalidraw'));
+  for (const f of mine.slice(0, Math.max(0, mine.length + 1 - 40))) fs.unlinkSync(path.join(dir, f));
+}
 // canvas names are plain words only, so a request can never leave canvas/
 function canvasPath(name) {
   if (typeof name !== 'string' || !/^[\w-]+$/.test(name)) return null;
@@ -220,6 +230,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && !okPostOrigin(req)) { return send(res, 403, 'forbidden'); }
   if (review.handle(req, res, p)) return;   // comments, replies, status, dictation, live events
 
+  if (req.method === 'GET' && (p === '/canvas' || p.startsWith('/api/canvas/')) && !hostOk(req.headers.host)) return send(res, 403, 'forbidden');
   if (req.method === 'GET' && p === '/canvas') {
     return send(res, 200, fs.readFileSync(CANVAS_HTML), MIME['.html']);
   }
@@ -235,24 +246,27 @@ const server = http.createServer((req, res) => {
     const abs = canvasPath(url.searchParams.get('file'));
     if (!abs || !fs.existsSync(abs)) return send(res, 404, 'no such canvas');
     if (p === '/api/canvas/mtime') return send(res, 200, JSON.stringify({ mtime: fs.statSync(abs).mtimeMs }), MIME['.json']);
-    return send(res, 200, fs.readFileSync(abs), MIME['.json']);
+    res.writeHead(200, { 'Content-Type': MIME['.json'], 'X-Mtime': String(fs.statSync(abs).mtimeMs) });
+    return res.end(fs.readFileSync(abs));
   }
   if (req.method === 'POST' && p === '/api/canvas/save') {
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 20_000_000) req.destroy(); });
     req.on('end', () => {
       try {
-        const { file, scene } = JSON.parse(body);
+        const { file, scene, baseMtime, force } = JSON.parse(body);
         const abs = canvasPath(file);
         if (!abs || !scene || scene.type !== 'excalidraw' || !Array.isArray(scene.elements)) return send(res, 400, 'bad canvas');
         const out = JSON.stringify(scene, null, 1);
-        if (fs.existsSync(abs) && fs.readFileSync(abs, 'utf8') !== out) { // keep one previous copy
-          fs.mkdirSync(path.join(ROOT, 'canvas', '.bak'), { recursive: true });
-          fs.copyFileSync(abs, path.join(ROOT, 'canvas', '.bak', path.basename(abs)));
+        const exists = fs.existsSync(abs);
+        // someone else (the agent) wrote the file after this page loaded it: do not overwrite unless told to
+        if (exists && !force && typeof baseMtime === 'number' && Math.abs(fs.statSync(abs).mtimeMs - baseMtime) > 1) {
+          return send(res, 409, JSON.stringify({ conflict: true }), MIME['.json']);
         }
+        if (exists && fs.readFileSync(abs, 'utf8') !== out) backupCanvas(abs);
         fs.writeFileSync(abs, out, 'utf8');
-        return send(res, 200, JSON.stringify({ ok: true, elements: scene.elements.length }), MIME['.json']);
-      } catch (e) { return send(res, 500, 'save failed: ' + e.message, MIME['.json']); }
+        return send(res, 200, JSON.stringify({ ok: true, elements: scene.elements.length, mtime: fs.statSync(abs).mtimeMs }), MIME['.json']);
+      } catch (e) { return send(res, 500, 'save failed', MIME['.json']); }
     });
     return;
   }

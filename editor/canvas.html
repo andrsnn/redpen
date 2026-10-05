@@ -50,6 +50,17 @@
   #cdlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   #cdlg button{border:1px solid #d0d4da;background:#fff;border-radius:7px;padding:6px 12px;cursor:pointer;font:inherit}
   #cdlg button[type=submit]{background:#3563e3;border-color:#3563e3;color:#fff}
+
+  /* phones and narrow windows: bar at the bottom, comments as a bottom sheet, bigger touch targets, 16px inputs (stops iOS zoom) */
+  @media (max-width: 700px){
+    #bar{top:auto;bottom:8px;left:8px;right:8px;transform:none;flex-wrap:wrap;justify-content:center;font-size:13px;max-width:none}
+    #bar button{padding:8px 12px}
+    #cpanel{top:auto;bottom:0;left:0;right:0;width:auto;height:60vh;border-left:0;border-top:1px solid #d0d4da;border-radius:14px 14px 0 0;padding:14px 12px 72px;box-shadow:0 -4px 16px rgba(0,0,0,.18)}
+    #cpanel button{padding:8px 12px}
+    #cpanel textarea,#cdlg textarea{font-size:16px}
+    #cdlg{width:calc(100vw - 24px);left:12px!important;top:12px!important;max-height:calc(100vh - 24px);overflow:auto}
+    .pin{width:30px;height:30px;margin:-15px 0 0 -15px;font-size:14px}
+  }
 </style>
 </head>
 <body>

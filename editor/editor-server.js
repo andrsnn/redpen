@@ -244,10 +244,10 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && (p === '/canvas' || p.startsWith('/api/canvas/')) && !hostOk(req.headers.host)) return send(res, 403, 'forbidden');
   if (req.method === 'GET' && p === '/canvas') {
-    return send(res, 200, fs.readFileSync(CANVAS_HTML), MIME['.html']);
+    { res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(CANVAS_HTML)); }
   }
   if (req.method === 'GET' && (p === '/' || p === '/index.html' || p === '/editor.html')) {
-    return send(res, 200, fs.readFileSync(HAS_SLIDES ? EDITOR_HTML : CANVAS_HTML), MIME['.html']);
+    { res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' }); return res.end(fs.readFileSync(HAS_SLIDES ? EDITOR_HTML : CANVAS_HTML)); } // a phone must not keep an old copy of the editor
   }
 
   // ---- canvas (Excalidraw scenes in canvas/NAME.excalidraw) ----

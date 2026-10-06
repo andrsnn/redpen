@@ -59,6 +59,10 @@
   #notes .nh i{font-style:normal;font-weight:400;letter-spacing:0;text-transform:none;color:#5f6878;font-size:11.5px}
   #notesTa{flex:1;resize:none;width:100%;background:#0f1114;color:#dfe4ec;border:1px solid #2a2e37;border-radius:8px;padding:8px 10px;font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
   #notesTa:focus{outline:2px solid #3563e3;border-color:transparent}
+  #notes{position:relative}
+  #notesGrip{flex:none;height:24px;margin:-8px -14px -2px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;touch-action:none;-webkit-tap-highlight-color:transparent}
+  #notesGrip:before{content:"";width:46px;height:5px;border-radius:3px;background:#3a4150}
+  #notesGrip:hover:before,#notesGrip:active:before{background:#5a647a}
   #stageWrap{position:relative}
   #frame{display:block;border:0;background:#f4f5f7;transform-origin:top left}
 
@@ -193,7 +197,7 @@
     <div id="stageWrap"><iframe id="frame" width="1280" height="720" tabindex="-1"></iframe></div>
     <div id="help">click = select · drag = move · double-click = edit text · Enter / Esc = done · ⌘⌥M = comment while editing · Shift+Enter = newline · Del = delete element · Ctrl+Z = undo · Ctrl+S = save</div>
   </div>
-  <div id="notes"><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
+  <div id="notes"><div id="notesGrip" title="Drag up to see more of the notes. Tap to expand or shrink."></div><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
   </div>
   <div id="cpanel"></div>
 </div>
@@ -307,6 +311,24 @@ $('notesTa').addEventListener('input', () => {
   setDirty(true);
 });
 $('notesTa').addEventListener('keydown', (e) => { e.stopPropagation(); if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } });
+
+/* Drag the grip above the speaker notes up to see more of them. A tap expands or shrinks them. */
+(() => {
+  const notes = $('notes'), grip = $('notesGrip');
+  const base = notes.getBoundingClientRect().height;
+  let y0 = 0, h0 = 0, moved = false;
+  const maxH = () => Math.max(120, window.innerHeight - 52 - 170);
+  const setH = (h) => { notes.style.height = Math.max(60, Math.min(maxH(), h)) + 'px'; fit(); };
+  try { const saved = Number(localStorage.getItem('notesH')); if (saved) setH(saved); } catch (e) {}
+  grip.addEventListener('pointerdown', (e) => { grip.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = notes.getBoundingClientRect().height; moved = false; e.preventDefault(); });
+  grip.addEventListener('pointermove', (e) => { if (!grip.hasPointerCapture(e.pointerId)) return; const dy = y0 - e.clientY; if (Math.abs(dy) > 4) moved = true; if (moved) setH(h0 + dy); });
+  grip.addEventListener('pointerup', (e) => {
+    if (grip.hasPointerCapture(e.pointerId)) grip.releasePointerCapture(e.pointerId);
+    if (!moved) setH(notes.getBoundingClientRect().height > maxH() * 0.6 ? base : maxH() * 0.85);
+    try { localStorage.setItem('notesH', String(Math.round(notes.getBoundingClientRect().height))); } catch (err) {}
+  });
+  window.addEventListener('resize', () => { if (notes.style.height) setH(parseFloat(notes.style.height)); });
+})();
 
 /* ───────────────────────── in-iframe setup ───────────────────────── */
 function doc() { return frame.contentDocument; }

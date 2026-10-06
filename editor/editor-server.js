@@ -49,6 +49,10 @@ async function withBrowser(fn) {
     return await fn(await browser());
   }
 }
+// Slide images are rendered at this multiple of the 1280x720 slide: 3 gives 3840x2160, sharp on a big screen or zoomed in.
+// Set EXPORT_SCALE=2 for smaller files. A single-slide PNG can ask for 1 to 4 with ?scale=.
+const EXPORT_SCALE = Math.min(4, Math.max(1, Number(process.env.EXPORT_SCALE) || 3));
+const pickScale = (v) => { const n = Math.round(Number(v)); return n >= 1 && n <= 4 ? n : EXPORT_SCALE; };
 // Get a slide page ready to photograph or print: remove the speaker notes so they can never reach an export,
 // wait for fonts, and fail loudly if a web font did not load (the export would silently use a different font).
 async function preparePage(page) {
@@ -64,11 +68,11 @@ async function preparePage(page) {
   });
   if (missing.length) throw new Error('font did not load, so the export would look different from the web view: ' + missing.join(', '));
 }
-async function shootSlides(rel) {
+async function shootSlides(rel, scale) {
   return withBrowser(async (b) => {
   const page = await b.newPage();
   try {
-    await page.setViewport({ width: 1360, height: 1000, deviceScaleFactor: 2 });
+    await page.setViewport({ width: 1360, height: 1000, deviceScaleFactor: scale || EXPORT_SCALE });
     await page.goto('http://' + HOST + ':' + PORT + '/' + rel, { waitUntil: 'networkidle0', timeout: 30000 });
     await preparePage(page);
     const els = await page.$$('.slide');
@@ -252,6 +256,7 @@ function send(res, code, body, type) {
 
 // puppeteer takes over SIGTERM once it has opened a browser, which left a stopped editor still running. Exit for real.
 for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { server.close(); } catch (e) {} process.exit(0); });
+const FAVICON_SVG = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='#232833'/><path d='M6 27l1.8-6.8L22.4 5.6a2.6 2.6 0 013.7 0l.3.3a2.6 2.6 0 010 3.7L11.8 24.2z' fill='#e5484d'/><path d='M20 8l4 4' stroke='#232833' stroke-width='2' stroke-linecap='round'/></svg>`; // the red pen shown in the browser tab
 const server = http.createServer((req, res) => {
   let url;
   try { url = new URL(req.url, 'http://' + HOST); } catch { return send(res, 400, 'bad url'); }
@@ -300,6 +305,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && (p === '/favicon.svg' || p === '/favicon.ico')) {
+    res.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store' });
+    return res.end(FAVICON_SVG);
+  }
+
   if (req.method === 'GET' && p === '/api/list') {
     return send(res, 200, JSON.stringify({ root: path.basename(ROOT), files: listSlides() }), MIME['.json']);
   }
@@ -308,9 +318,10 @@ const server = http.createServer((req, res) => {
     const file = url.searchParams.get('file') || '';
     const abs = safeJoin(file);
     if (!abs || !abs.endsWith('.html') || !fs.existsSync(abs)) return send(res, 400, 'bad file');
-    shootSlides(file).then((shots) => {
+    const scale = pickScale(url.searchParams.get('scale'));
+    shootSlides(file, scale).then((shots) => {
       if (!shots.length) return send(res, 500, 'no .slide found');
-      sendFile(res, shots[0], 'image/png', path.basename(file, '.html') + '.png');
+      sendFile(res, shots[0], 'image/png', path.basename(file, '.html') + '-' + (1280 * scale) + 'x' + (720 * scale) + '.png');
     }).catch((e) => send(res, 500, 'export failed: ' + e.message));
     return;
   }

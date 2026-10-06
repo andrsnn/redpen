@@ -60,9 +60,11 @@
   #notesTa{flex:1;resize:none;width:100%;background:#0f1114;color:#dfe4ec;border:1px solid #2a2e37;border-radius:8px;padding:8px 10px;font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
   #notesTa:focus{outline:2px solid #3563e3;border-color:transparent}
   #notes{position:relative}
-  #notesGrip{flex:none;height:24px;margin:-8px -14px -2px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;touch-action:none;-webkit-tap-highlight-color:transparent}
-  #notesGrip:before{content:"";width:46px;height:5px;border-radius:3px;background:#3a4150}
-  #notesGrip:hover:before,#notesGrip:active:before{background:#5a647a}
+  #notesGrip{flex:none;height:34px;margin:-8px -14px -8px;display:flex;align-items:center;justify-content:center;cursor:ns-resize;touch-action:none;-webkit-tap-highlight-color:transparent}
+  #notesGrip:before{content:"";width:64px;height:6px;border-radius:3px;background:#7b869d}
+  #notesGrip:active:before{background:#aab4c8}
+  #notes .nh{touch-action:none;cursor:ns-resize;align-items:center;user-select:none;-webkit-user-select:none}
+  #notesBtn{margin-left:auto;flex:none;touch-action:manipulation;background:#242a36;color:#cfd6e4;border:1px solid #3a4252;border-radius:999px;padding:5px 12px;font:600 11px -apple-system,BlinkMacSystemFont,Arial,sans-serif;letter-spacing:.04em;cursor:pointer}
   #stageWrap{position:relative}
   #frame{display:block;border:0;background:#f4f5f7;transform-origin:top left}
 
@@ -197,7 +199,7 @@
     <div id="stageWrap"><iframe id="frame" width="1280" height="720" tabindex="-1"></iframe></div>
     <div id="help">click = select · drag = move · double-click = edit text · Enter / Esc = done · ⌘⌥M = comment while editing · Shift+Enter = newline · Del = delete element · Ctrl+Z = undo · Ctrl+S = save</div>
   </div>
-  <div id="notes"><div id="notesGrip" title="Drag up to see more of the notes. Tap to expand or shrink."></div><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
+  <div id="notes"><div id="notesGrip" title="Drag up to see more of the notes. Tap to expand or shrink."></div><div class="nh">Speaker notes <i>saved inside this slide's file, with Save</i><button id="notesBtn" type="button" title="Expand or shrink the notes">Expand ▲</button></div><textarea id="notesTa" placeholder="What I say on this slide. Not shown on the slide itself." spellcheck="true"></textarea></div>
   </div>
   <div id="cpanel"></div>
 </div>
@@ -312,22 +314,41 @@ $('notesTa').addEventListener('input', () => {
 });
 $('notesTa').addEventListener('keydown', (e) => { e.stopPropagation(); if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } });
 
-/* Drag the grip above the speaker notes up to see more of them. A tap expands or shrinks them. */
+/* Drag the handle or the "Speaker notes" strip up to see more of the notes. The Expand button, or a tap on the handle, jumps between big and small. */
 (() => {
-  const notes = $('notes'), grip = $('notesGrip');
+  const notes = $('notes'), grip = $('notesGrip'), head = notes.querySelector('.nh'), btn = $('notesBtn');
   const base = notes.getBoundingClientRect().height;
-  let y0 = 0, h0 = 0, moved = false;
+  let y0 = 0, h0 = 0, moved = false, active = null;
   const maxH = () => Math.max(120, window.innerHeight - 52 - 170);
-  const setH = (h) => { notes.style.height = Math.max(60, Math.min(maxH(), h)) + 'px'; fit(); };
+  const isBig = () => notes.getBoundingClientRect().height > maxH() * 0.6;
+  const label = () => { btn.textContent = isBig() ? 'Shrink \u25bc' : 'Expand \u25b2'; };
+  const save = () => { try { localStorage.setItem('notesH', String(Math.round(notes.getBoundingClientRect().height))); } catch (err) {} };
+  const setH = (h) => { notes.style.height = Math.max(60, Math.min(maxH(), h)) + 'px'; fit(); label(); };
+  const toggle = () => { setH(isBig() ? base : maxH() * 0.85); save(); };
   try { const saved = Number(localStorage.getItem('notesH')); if (saved) setH(saved); } catch (e) {}
-  grip.addEventListener('pointerdown', (e) => { grip.setPointerCapture(e.pointerId); y0 = e.clientY; h0 = notes.getBoundingClientRect().height; moved = false; e.preventDefault(); });
-  grip.addEventListener('pointermove', (e) => { if (!grip.hasPointerCapture(e.pointerId)) return; const dy = y0 - e.clientY; if (Math.abs(dy) > 4) moved = true; if (moved) setH(h0 + dy); });
-  grip.addEventListener('pointerup', (e) => {
-    if (grip.hasPointerCapture(e.pointerId)) grip.releasePointerCapture(e.pointerId);
-    if (!moved) setH(notes.getBoundingClientRect().height > maxH() * 0.6 ? base : maxH() * 0.85);
-    try { localStorage.setItem('notesH', String(Math.round(notes.getBoundingClientRect().height))); } catch (err) {}
-  });
-  window.addEventListener('resize', () => { if (notes.style.height) setH(parseFloat(notes.style.height)); });
+  label();
+  for (const el of [grip, head]) {
+    el.addEventListener('pointerdown', (e) => {
+      if (e.target === btn) return;
+      active = e.pointerId; y0 = e.clientY; h0 = notes.getBoundingClientRect().height; moved = false;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (active !== e.pointerId) return;
+      const dy = y0 - e.clientY; if (Math.abs(dy) > 4) moved = true;
+      if (moved) setH(h0 + dy);
+    });
+    const end = (e) => {
+      if (active !== e.pointerId) return;
+      active = null;
+      try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (!moved && e.target !== btn) toggle(); else save();
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+  btn.addEventListener('click', (e) => { e.stopPropagation(); toggle(); });
+  window.addEventListener('resize', () => { if (notes.style.height) setH(parseFloat(notes.style.height)); else label(); });
 })();
 
 /* ───────────────────────── in-iframe setup ───────────────────────── */

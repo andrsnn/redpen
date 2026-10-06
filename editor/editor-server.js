@@ -49,13 +49,28 @@ async function withBrowser(fn) {
     return await fn(await browser());
   }
 }
+// Get a slide page ready to photograph or print: remove the speaker notes so they can never reach an export,
+// wait for fonts, and fail loudly if a web font did not load (the export would silently use a different font).
+async function preparePage(page) {
+  await page.evaluate(async () => {
+    document.querySelectorAll('script[type="text/x-notes"]').forEach((n) => n.remove());
+    if (document.fonts) await document.fonts.ready;
+  });
+  const missing = await page.evaluate(() => {
+    const generic = ['sans-serif', 'serif', 'monospace', 'system-ui', 'ui-sans-serif', 'ui-monospace', '-apple-system', 'blinkmacsystemfont'];
+    const fams = new Set();
+    document.querySelectorAll('.slide, .slide *').forEach((e) => fams.add(getComputedStyle(e).fontFamily.split(',')[0].trim().replace(/["']/g, '')));
+    return [...fams].filter((f) => f && !generic.includes(f.toLowerCase()) && document.fonts && !document.fonts.check('16px "' + f + '"'));
+  });
+  if (missing.length) throw new Error('font did not load, so the export would look different from the web view: ' + missing.join(', '));
+}
 async function shootSlides(rel) {
   return withBrowser(async (b) => {
   const page = await b.newPage();
   try {
     await page.setViewport({ width: 1360, height: 1000, deviceScaleFactor: 2 });
     await page.goto('http://' + HOST + ':' + PORT + '/' + rel, { waitUntil: 'networkidle0', timeout: 30000 });
-    await page.evaluate(() => document.fonts && document.fonts.ready);
+    await preparePage(page);
     const els = await page.$$('.slide');
     const shots = [];
     for (const el of els) shots.push(await el.screenshot({ type: 'png' }));
@@ -75,7 +90,7 @@ async function printPdf(rel) {
     await page.setViewport({ width: 1280, height: 720 });
     await page.goto('http://' + HOST + ':' + PORT + '/' + rel, { waitUntil: 'networkidle0', timeout: 30000 });
     await page.addStyleTag({ content: PRINT_CSS });
-    await page.evaluate(() => document.fonts && document.fonts.ready);
+    await preparePage(page);
     return await page.pdf({ width: '1280px', height: '720px', printBackground: true, preferCSSPageSize: true });
   } finally { await page.close(); }
   });
@@ -235,6 +250,8 @@ function send(res, code, body, type) {
   res.end(body);
 }
 
+// puppeteer takes over SIGTERM once it has opened a browser, which left a stopped editor still running. Exit for real.
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { try { server.close(); } catch (e) {} process.exit(0); });
 const server = http.createServer((req, res) => {
   let url;
   try { url = new URL(req.url, 'http://' + HOST); } catch { return send(res, 400, 'bad url'); }

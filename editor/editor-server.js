@@ -17,6 +17,7 @@ const HAS_SLIDES = fs.existsSync(path.join(ROOT, 'slides'));
 if (!HAS_SLIDES && !fs.existsSync(path.join(ROOT, 'canvas'))) { console.error('No slides/ or canvas/ folder in ' + ROOT); process.exit(1); }
 const HOST = '127.0.0.1';
 const review = require('../review/review-api.js').create({ deck: ROOT, port: PORT });
+const gslides = require('./google-slides.js').create({ port: PORT }); // the Google Slides button
 // EDITOR_ALLOWED_HOSTS=name.ts.net (comma list) lets a tailnet / reverse-proxy host post too.
 const EXTRA_HOSTS = (process.env.EDITOR_ALLOWED_HOSTS || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 const hostOk = (h) => { h = (h || '').toLowerCase(); if (new RegExp('^(localhost|127\.0\.0\.1):' + PORT + '$').test(h)) return true; return EXTRA_HOSTS.some((x) => h === x || h === x + ':' + PORT); };
@@ -297,6 +298,8 @@ const server = http.createServer((req, res) => {
     })().catch((e) => send(res, 500, 'export failed: ' + e.message));
     return;
   }
+
+  if (gslides.handle(req, res, p, () => buildPptx(listSlides().filter((f) => f.startsWith('slides/'))), path.basename(ROOT))) return;
 
   if (req.method === 'GET' && p === '/api/export/pptx') {
     const files = listSlides().filter((f) => f.startsWith('slides/'));

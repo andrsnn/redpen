@@ -17,6 +17,7 @@ It started as a slide-deck tool. It works for anything you can lay out as pages:
 - **Live reload.** When the agent edits a file, you see it right away.
 - **Present.** Click **▶ Present** (next to the logo) and pick **Full screen** or **Fill this tab**, which covers the editor but stays in the browser tab. Press **P** to repeat your last choice. Arrows, space or a click move between slides, and Esc exits.
 - **Export.** PNG, all pages as a zip, PDF and PPTX.
+- **Google Slides.** One click uploads the main deck to your Google Drive as Google Slides and opens it. Slides arrive as full-slide images. One-time setup is at the top of `editor/google-slides.js`: a Google Cloud OAuth client saved to `~/.config/deck-kit/google-oauth.json`.
 - **Plain files.** Every page is one HTML file in a folder, so git shows exactly what changed.
 
 ![Flipping through variants](docs/variants.svg)

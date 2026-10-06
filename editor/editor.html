@@ -161,6 +161,7 @@
   <button id="btnPng" title="Download this slide as PNG">PNG</button>
   <button id="btnPngs" title="Download every main-deck slide as PNGs (zip)">All PNGs</button>
   <button id="btnPptx" title="Download the main deck as PowerPoint (one image per slide)">PPTX</button>
+  <button id="btnGslides" title="Upload the main deck to Google Slides and open it">Google Slides</button>
   <button id="btnPdf" title="Download the main deck as one PDF">PDF</button>
   <button id="btnSave" title="Save to file (Ctrl+S)">Save</button>
   <div id="savedFlash">Saved ✓</div>
@@ -747,6 +748,34 @@ $('btnPng').onclick = (e) => exportFile(e.currentTarget, '/api/export/png?file='
 $('btnPngs').onclick = (e) => exportFile(e.currentTarget, '/api/export/pngs', 'Zipping PNGs…');
 $('btnPptx').onclick = (e) => exportFile(e.currentTarget, '/api/export/pptx', 'Building PPTX…');
 $('btnPdf').onclick = (e) => exportFile(e.currentTarget, '/api/export/pdf?scope=main', 'Building PDF…');
+$('btnGslides').onclick = async (e) => {
+  const btn = e.currentTarget;
+  if (S.current && S.dirty.get(S.current)) await save();
+  const old = btn.textContent; btn.disabled = true;
+  const win = window.open('', '_blank'); // opened on the click so the popup blocker allows it
+  const show = (url) => { if (win) win.location = url; else window.open(url, '_blank'); };
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      btn.textContent = 'Uploading…';
+      const r = await fetch('/api/gslides/upload', { method: 'POST' });
+      const j = await r.json();
+      if (j.error) throw new Error(j.error);
+      if (j.url) { show(j.url); return; }
+      if (j.needsSetup) { if (win) win.close(); alert(j.help); return; }
+      if (j.needsAuth) {
+        btn.textContent = 'Sign in to Google…';
+        show(j.authUrl);
+        let ok = false;
+        for (let i = 0; i < 120 && !ok; i++) {
+          await new Promise((res) => setTimeout(res, 1500));
+          ok = (await (await fetch('/api/gslides/status')).json()).authed;
+        }
+        if (!ok) { if (win) win.close(); throw new Error('Google sign-in did not finish'); }
+      }
+    }
+  } catch (err) { if (win) win.close(); alert('Google Slides upload failed: ' + err.message); }
+  finally { btn.textContent = old; btn.disabled = false; btn.blur(); }
+};
 /* swipe left / right between slides on touch screens. Ignored during pinch zoom (two fingers),
    while zoomed in (the swipe is a pan), while editing, and after a long-press comment. */
 const swipe = { ids: new Set(), id: null, x: 0, y: 0, lx: 0, ly: 0, t: 0, ok: false };

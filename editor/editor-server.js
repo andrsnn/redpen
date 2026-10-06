@@ -36,12 +36,21 @@ let browserP = null;
 function browser() {
   if (!browserP) {
     const puppeteer = require(path.join(REPO_MODULES, 'puppeteer'));
-    browserP = puppeteer.launch().catch((e) => { browserP = null; throw e; });
+    browserP = puppeteer.launch().then((b) => { b.on('disconnected', () => { browserP = null; }); return b; }).catch((e) => { browserP = null; throw e; });
   }
   return browserP;
 }
+// If Chrome died (crash, sleep, killed), start a fresh one and retry the export once.
+async function withBrowser(fn) {
+  try { return await fn(await browser()); }
+  catch (e) {
+    if (!/Connection closed|Target closed|Session closed|disconnected|Protocol error/i.test(e.message)) throw e;
+    browserP = null;
+    return await fn(await browser());
+  }
+}
 async function shootSlides(rel) {
-  const b = await browser();
+  return withBrowser(async (b) => {
   const page = await b.newPage();
   try {
     await page.setViewport({ width: 1360, height: 1000, deviceScaleFactor: 2 });
@@ -52,6 +61,7 @@ async function shootSlides(rel) {
     for (const el of els) shots.push(await el.screenshot({ type: 'png' }));
     return shots;
   } finally { await page.close(); }
+  });
 }
 // Text-based PDF: Chrome prints each slide (real, selectable text), pdf-lib merges the files.
 const PRINT_CSS = '@page{size:1280px 720px;margin:0}' +
@@ -59,7 +69,7 @@ const PRINT_CSS = '@page{size:1280px 720px;margin:0}' +
   '.slide{box-shadow:none!important;margin:0!important;break-after:page;page-break-after:always}' +
   '.slide:last-of-type{break-after:auto;page-break-after:auto}';
 async function printPdf(rel) {
-  const b = await browser();
+  return withBrowser(async (b) => {
   const page = await b.newPage();
   try {
     await page.setViewport({ width: 1280, height: 720 });
@@ -68,6 +78,7 @@ async function printPdf(rel) {
     await page.evaluate(() => document.fonts && document.fonts.ready);
     return await page.pdf({ width: '1280px', height: '720px', printBackground: true, preferCSSPageSize: true });
   } finally { await page.close(); }
+  });
 }
 async function buildPdf(files) {
   const { PDFDocument } = require(path.join(REPO_MODULES, 'pdf-lib'));

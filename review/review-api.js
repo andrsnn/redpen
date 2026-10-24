@@ -23,7 +23,7 @@ exports.create = function create({ deck, port }) {
     return rd(inbox, '').split('\n').filter(Boolean)
       .map(l => { try { return JSON.parse(l); } catch (e) { return null; } })
       .filter(c => c && c.type !== 'reply')
-      .map(c => ({ status: 'open', thread: [], ...c, ...(st[c.id] || {}) }));
+      .map(c => ({ status: 'open', thread: [], ctype: 'comment', ...c, ...(st[c.id] || {}) }));
   };
 
   // dictation: the key is read from a local env file at request time and never sent to the page
@@ -69,15 +69,15 @@ exports.create = function create({ deck, port }) {
   }, 400).unref();
 
   function handle(q, r, u) {
-    const routes = ['/solo', '/comment', '/reply', '/status', '/transcribe', '/comments', '/events'];
+    const routes = ['/solo', '/ctype', '/comment', '/reply', '/status', '/transcribe', '/comments', '/events'];
     if (!routes.includes(u)) return false;
     (async () => {
       try {
         if (q.method === 'POST' && !okOrigin(q)) { r.writeHead(403); r.end('forbidden'); return; }
         if (q.method === 'POST' && u === '/comment') {
-          const { id, slide, quote, comment, at } = JSON.parse((await body(q, 200000)).toString());
+          const { id, slide, quote, comment, at, ctype } = JSON.parse((await body(q, 200000)).toString());
           if (!String(comment || '').trim()) throw new Error('empty');
-          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), comment: String(comment).trim().slice(0, 40000), at: at || new Date().toISOString() }) + '\n');
+          fs.appendFileSync(inbox, JSON.stringify({ id: id || 'comment-' + Date.now(), slide: String(slide || '').slice(0, 80), quote: String(quote || '').slice(0, 500), ctype: ctype === 'note' ? 'note' : 'comment', comment: String(comment).trim().slice(0, 40000), at: at || new Date().toISOString() }) + '\n');
           r.writeHead(200); r.end('ok'); return;
         }
         if (q.method === 'POST' && u === '/reply') {
@@ -90,6 +90,11 @@ exports.create = function create({ deck, port }) {
           st[id] = { ...cur, status: 'open', thread: [...(cur.thread || []), { from: 'you', text: t, at: at || new Date().toISOString() }] };
           delete st[id].doneAt; writeState(st);
           r.writeHead(200); r.end('ok'); return;
+        }
+        if (q.method === 'POST' && u === '/ctype') {
+          const { id, ctype } = JSON.parse((await body(q, 2000)).toString());
+          if (!['comment', 'note'].includes(ctype) || !readComments().some(c => c.id === id)) throw new Error('bad');
+          const st = readState(); st[id] = { ...(st[id] || {}), ctype }; writeState(st); r.writeHead(200); r.end('ok'); return;
         }
         if (q.method === 'POST' && u === '/status') {
           const { id, status } = JSON.parse((await body(q, 2000)).toString());

@@ -76,15 +76,22 @@ For each comment the agent makes the change and replies with `python3 review/res
 
 ## Solo mode
 
-Review a page on your own first, then bring the agent in. Comments are private notes by default.
+Review a page on your own first, then bring the agent in. There are two kinds of comment:
+
+- **Comment**: for the agent. It waits for an answer.
+- **Note**: private. The agent does not act on it unless the note mentions `@claude`.
 
 ```sh
 ./solo.sh projects/my-project                         # starts the editor and creates review/solo
 python3 tools/export-comments.py projects/my-project | pbcopy   # your notes as markdown, grouped by page
-python3 tools/watch-comments.py projects/my-project   # in solo mode, prints only comments that contain @claude
+python3 tools/watch-comments.py projects/my-project   # in solo mode, prints comments and notes that mention @claude
 ```
 
-Start a comment with `@claude` to ask the agent for a change or an answer. Comments from before you started (any with an id starting `orig-`, or archived) are left out of the export; `--all` includes them. Delete `review/solo` to go back to normal mode.
+- Select text and a small bar offers **Comment** or **Note**. In the comment box you can switch the type. Keys: C for a comment, N for a note.
+- Commented text is shaded in the page (blue for comments, green for notes). Click shaded text to open its thread.
+- The panel has All / Comments / Notes buttons, and each thread has a type chip you can click to switch it.
+- `export-comments.py` exports notes by default. Use `--type comment` or `--type all` for the others, and `--all` to include archived threads and ids starting `orig-`.
+- Delete `review/solo` to go back to normal mode, where every comment goes to the agent.
 
 ## Doc pages
 

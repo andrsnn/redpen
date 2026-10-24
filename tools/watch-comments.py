@@ -27,10 +27,10 @@ def read():
         pass
     return out
 
-# Solo mode: if <project>/review/solo exists, comments are private notes. Only ones that mention @claude are printed.
+# Solo mode: if <project>/review/solo exists, notes are private. Comments (and notes that mention @claude) are printed.
 solo = os.path.exists(os.path.join(project, 'review', 'solo'))
 def wanted(c):
-    return (not solo) or '@claude' in c.get('comment', '').lower()
+    return (not solo) or c.get('ctype', 'comment') != 'note' or '@claude' in c.get('comment', '').lower()
 
 seen = set(read())
 print('watching', path, flush=True)

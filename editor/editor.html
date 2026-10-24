@@ -104,11 +104,19 @@
   #cpanel .cq{color:#9fb6d3;border-left:2px solid #5b7fb3;padding-left:7px;margin:6px 0 4px;font-size:12px;max-height:3.9em;overflow:hidden}
   #cpanel .m{margin-top:7px;padding:7px 9px;border-radius:8px;background:#0d1b2c}#cpanel .m.claude{background:#1b2a40}#cpanel .m.change{background:#3a3010;color:#ffe9a8}
   #cpanel .m .mh{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#8ea6c4;margin-bottom:2px}#cpanel .m.change .mh{color:#ffd666}
-  #cpanel .m .mt{white-space:pre-wrap;color:#f3f8ff}#cpanel .m.change .mt{color:#ffe9a8}
+  #cpanel .m .mt{color:#f3f8ff;line-height:1.5}
+  #cpanel .m .mt p{margin:0 0 8px}#cpanel .m .mt p.lead{margin:12px 0 4px;font-weight:700;color:#fff}#cpanel .m .mt p:first-child{margin-top:0}
+  #cpanel .m .mt pre.code{margin:2px 0 10px;padding:8px 10px;background:#08111d;border:1px solid #2d4466;border-radius:6px;font:12px/1.45 ui-monospace,Menlo,monospace;color:#d6e6ff;white-space:pre;overflow-x:auto}
+  #cpanel .m .mt ul.bl,#cpanel .m .mt ol.bl{margin:0 0 8px;padding-left:20px}#cpanel .m .mt li{margin:0 0 6px;padding-left:2px}#cpanel .m .mt ul.bl li::marker{color:#8db9f7}#cpanel .m.change .mt{color:#ffe9a8}
   #cpanel .more{color:#9fb6d3;font-size:12px;margin-top:6px}
   #cpanel textarea.r{width:100%;margin-top:8px;resize:none;background:#0d1b2c;color:#f0f6ff;border:1px solid #526b8d;border-radius:7px;padding:7px 8px;font:inherit;min-height:34px}
   #cpanel textarea.r:focus{outline:2px solid #8db9f7;min-height:64px}
   #cpanel .cb{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  #cpanel .tf{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+  #cpanel .tf button.on{background:#27487a;border-color:#8db9f7}
+  #cpanel .tchip{border-radius:999px;padding:1px 9px;font-weight:700;font-size:11px;border:1px solid transparent;cursor:pointer}
+  #cpanel .tchip.note{background:#1d4a2c;color:#c4f2d0;border-color:#2f7a4a}#cpanel .tchip.comment{background:#1f3f73;color:#bcd6ff;border-color:#3f6bb5}
+  #cdlg select{background:#0d1b2c;color:#f0f6ff;border:1px solid #607b9f;border-radius:6px;padding:5px 8px;font:inherit;font-size:13px}
   .item.review{box-shadow:inset 3px 0 0 #ffcd3c}
   #cdlg{width:min(540px,calc(100vw - 30px));border:1px solid #6685ae;border-radius:11px;background:#17283d;color:#edf2fa;padding:20px}
   #cdlg::backdrop{background:#0000}
@@ -233,7 +241,7 @@
   </div>
   <div id="cpanel"></div>
 </div>
-<dialog id="cdlg"><form id="cfrm"><h2 id="chead" style="font-size:16px">Add a comment</h2><p id="cctx"></p><textarea id="cinp" required placeholder="What should change?"></textarea><div class="acts"><button type="button" id="cmic" data-mic="dialog" style="margin-right:auto">🎤 Dictate</button><button type="button" id="ccancel">Cancel</button><button type="submit">Save comment (⌘↵)</button></div></form></dialog>
+<dialog id="cdlg"><form id="cfrm"><h2 id="chead" style="font-size:16px">Add a comment</h2><p id="cctx"></p><textarea id="cinp" required placeholder="What should change?"></textarea><div class="acts"><select id="ctsel" title="Comment type"><option value="comment">Comment</option><option value="note">Note</option></select><button type="button" id="cmic" data-mic="dialog" style="margin-right:auto">🎤 Dictate</button><button type="button" id="ccancel">Cancel</button><button type="submit">Save comment (⌘↵)</button></div></form></dialog>
 
 <script>
 'use strict';
@@ -925,6 +933,11 @@ init();
   const byId = (i) => document.getElementById(i);
   const panel = byId('cpanel'), dlg = byId('cdlg'), inp = byId('cinp'), ctx = byId('cctx');
   let comments = [], confirmKey = '', resConfirm = false, hideRes = true, activeId = null, rec = null, lastSave = 0, statusMsg = 'Press C to comment on the selected text or element.';
+  // comment types: "note" (yours) and "research" (looked up). The panel can show one type or all; a type chip changes it.
+  const CTYPES = ['comment', 'note'];   // a comment is for Claude; a note is private (solo mode)
+  const ctOf = (c) => (c.ctype === 'note' ? 'note' : 'comment');
+  let typeFilter = (() => { try { return localStorage.getItem('redpen.tf') || 'all'; } catch (e) { return 'all'; } })();
+  const HL = { ranges: [] };   // highlighted ranges in the open page: { id, r }
   const drafts = {}, EXP = 'editor-expanded-' + location.pathname + location.port;
   const expanded = new Set((() => { try { return JSON.parse(localStorage.getItem(EXP) || '[]'); } catch (e) { return []; } })());
   const saveExp = () => { try { localStorage.setItem(EXP, JSON.stringify([...expanded])); } catch (e) {} };
@@ -979,7 +992,7 @@ init();
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up); e.preventDefault();
   });
   let variantMode = false;
-  function openDlg(variant, force) {
+  function openDlg(variant, force, ctypeArg) {
     if (dlg.open || !S.current) return;
     dropStaleEdit();
     if (S.editing && !force) return;
@@ -989,7 +1002,7 @@ init();
     byId('chead').textContent = variantMode ? 'Ask for a variant' : 'Add a comment';
     inp.placeholder = variantMode ? 'What should this variant try?' : 'What should change?';
     ctx.textContent = label(target.slide) + (variantMode ? ' · new variant' : (target.quote ? ' · “' + target.quote + '”' : ' · general comment'));
-    inp.value = ''; dposZ = null;
+    inp.value = ''; dposZ = null; byId('ctsel').style.display = window.__solo ? '' : 'none'; byId('ctsel').value = ctypeArg || (typeFilter === 'note' ? 'note' : 'comment');
     // On touch screens, focusing a text box makes the browser zoom or scroll to it, which throws away the user's pinch zoom.
     // So the box opens without focus (the dialog itself takes it) and the user taps the text area to type.
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -1002,12 +1015,18 @@ init();
   window.requestVariant = () => openDlg(true);
   window.requestComment = () => openDlg();
   /* doc pages: a small Comment button appears next to highlighted text */
-  const cbtn = document.createElement('button');
-  cbtn.textContent = 'Comment'; cbtn.id = 'selComment';
-  cbtn.style.cssText = 'position:fixed;display:none;z-index:50;font:600 12px system-ui,sans-serif;padding:5px 10px;border-radius:6px;border:1px solid #526b8d;background:#18304c;color:#eaf2fc;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+  const cbtn = document.createElement('div');   // holds the Comment and Note buttons next to a selection
+  cbtn.id = 'selComment';
+  cbtn.style.cssText = 'position:fixed;display:none;gap:4px;z-index:50';
+  const mkBtn = (txt, ct) => {
+    const b = document.createElement('button'); b.textContent = txt;
+    b.style.cssText = 'font:600 12px system-ui,sans-serif;padding:5px 10px;border-radius:6px;border:1px solid #526b8d;background:#18304c;color:#eaf2fc;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+    b.addEventListener('mousedown', (e) => e.preventDefault());   // keep the text selected
+    b.addEventListener('click', () => { cbtn.style.display = 'none'; openDlg(false, false, ct); });
+    cbtn.appendChild(b); return b;
+  };
+  mkBtn('Comment', 'comment'); const noteBtn = mkBtn('Note', 'note');
   document.body.appendChild(cbtn);
-  cbtn.addEventListener('mousedown', (e) => e.preventDefault());   // keep the text selected
-  cbtn.addEventListener('click', () => { cbtn.style.display = 'none'; openDlg(); });
   const showSelBtn = () => {
     try {
       const d = doc(), sel = d.getSelection();
@@ -1015,7 +1034,7 @@ init();
       const r = sel.getRangeAt(0).getBoundingClientRect(), f = frame.getBoundingClientRect(), k = S.scale || 1;
       cbtn.style.left = Math.max(8, Math.min(window.innerWidth - 90, f.left + r.right * k + 6)) + 'px';
       cbtn.style.top = Math.max(60, f.top + r.top * k - 34) + 'px';
-      cbtn.style.display = 'block';
+      noteBtn.style.display = window.__solo ? '' : 'none'; cbtn.style.display = 'flex';
     } catch (e) { cbtn.style.display = 'none'; }
   };
   const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
@@ -1023,18 +1042,66 @@ init();
     if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'KeyM' || e.key.toLowerCase() === 'm') && !dlg.open) { e.preventDefault(); e.stopPropagation(); openDlg(false, true); return; }
     if ((e.key === 'c' || e.key === 'C') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(); }
     if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(true); }
+    if ((e.key === 'n' || e.key === 'N') && window.__solo && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(false, false, 'note'); }
   };
   window.addEventListener('keydown', onKey, true);
-  const hookFrame = () => { try { doc().addEventListener('keydown', onKey, true); doc().addEventListener('mouseup', () => setTimeout(showSelBtn, 0)); doc().addEventListener('keyup', showSelBtn); doc().addEventListener('scroll', () => { cbtn.style.display = 'none'; }, true); } catch (e) {} };
+  const hookFrame = () => { try { doc().addEventListener('keydown', onKey, true); doc().addEventListener('mouseup', () => setTimeout(showSelBtn, 0)); doc().addEventListener('keyup', showSelBtn); doc().addEventListener('scroll', () => { cbtn.style.display = 'none'; }, true); doc().addEventListener('click', hlClick); doc().addEventListener('mousemove', hlMove); setTimeout(refreshHighlights, 0); } catch (e) {} };
   frame.addEventListener('load', hookFrame); hookFrame();
   byId('ccancel').onclick = () => dlg.close();
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); byId('cfrm').requestSubmit(); } });
   byId('cfrm').addEventListener('submit', (e) => {
     e.preventDefault(); const body = inp.value.trim(); if (!body) return;
-    const c = { id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), slide: target.slide, quote: target.quote, comment: (variantMode ? '[VARIANT REQUEST] ' : '') + body, at: new Date().toISOString() };
+    const c = { id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), slide: target.slide, quote: target.quote, comment: (variantMode ? '[VARIANT REQUEST] ' : '') + body, ctype: byId('ctsel').value, at: new Date().toISOString() };
     dlg.close(); say('Sending…');
-    fetch('/comment', { method: 'POST', headers: hdr, body: JSON.stringify(c) }).then((r) => { if (!r.ok) throw 0; say(variantMode ? 'Variant request sent to Claude' : (window.__solo && !/@claude/i.test(c.comment) ? 'Private note saved (add @claude to ask Claude)' : 'Comment sent to Claude')); activeId = c.id; load(); }).catch(() => say('Could not send the comment'));
+    fetch('/comment', { method: 'POST', headers: hdr, body: JSON.stringify(c) }).then((r) => { if (!r.ok) throw 0; say(variantMode ? 'Variant request sent to Claude' : (window.__solo && c.ctype === 'note' && !/@claude/i.test(c.comment) ? 'Note saved (private)' : 'Comment sent to Claude')); activeId = c.id; load(); }).catch(() => say('Could not send the comment'));
   });
+
+  // ---- highlights: commented text is shaded in the page; click it to open its thread
+  function textMap(d) {
+    const w = d.createTreeWalker(d.body, 4, { acceptNode: (n) => (/^(SCRIPT|STYLE|NOSCRIPT)$/.test(n.parentNode.nodeName) ? 2 : 1) });
+    const chars = []; let s = '', n;
+    while ((n = w.nextNode())) { const t = n.nodeValue; for (let i = 0; i < t.length; i++) { if (!/\s/.test(t[i])) { chars.push([n, i]); s += t[i]; } } }
+    return { s, chars };
+  }
+  function refreshHighlights() {
+    let d; try { d = doc(); } catch (e) { return; }
+    const win = d && d.defaultView;
+    if (!d || !d.body || !win || !win.CSS || !win.CSS.highlights || !win.Highlight) return;
+    if (!d.getElementById('__rp_hl')) {
+      const st = d.createElement('style'); st.id = '__rp_hl';
+      st.textContent = '::highlight(rp-note){background-color:#bfe8c9;color:#10240f}::highlight(rp-comment){background-color:#bcd4ff;color:#0c1d3a}::highlight(rp-active){background-color:#5f9bff;color:#fff;text-decoration:underline}';
+      d.head.appendChild(st);
+    }
+    const m = textMap(d), per = { comment: [], note: [], active: [] }, cur = curFile();
+    HL.ranges = [];
+    comments.forEach((c) => {
+      if (c.status === 'archived' || (hideRes && c.status === 'addressed') || !c.quote || base(c.slide) !== cur) return;
+      const ct = ctOf(c); if (window.__solo && typeFilter !== 'all' && ct !== typeFilter) return;
+      const q = c.quote.replace(/\s+/g, ''); if (!q) return;
+      const i = m.s.indexOf(q); if (i < 0) return;
+      const a = m.chars[i], b = m.chars[i + q.length - 1], r = d.createRange();
+      try { r.setStart(a[0], a[1]); r.setEnd(b[0], b[1] + 1); } catch (e) { return; }
+      HL.ranges.push({ id: c.id, r });
+      (c.id === activeId ? per.active : (per[ct] || per.comment)).push(r);
+    });
+    ['comment', 'note', 'active'].forEach((k) => { const H = new win.Highlight(); per[k].forEach((r) => H.add(r)); if (k === 'active') H.priority = 2; win.CSS.highlights.set('rp-' + k, H); });
+  }
+  function hlAt(e) {
+    let best = null;
+    HL.ranges.forEach((h) => {
+      let rects; try { rects = h.r.getClientRects(); } catch (x) { return; }
+      for (const q of rects) {
+        if (e.clientX >= q.left - 1 && e.clientX <= q.right + 1 && e.clientY >= q.top - 1 && e.clientY <= q.bottom + 1) { const len = h.r.toString().length; if (!best || len < best.len) best = { id: h.id, len }; break; }
+      }
+    });
+    return best && best.id;
+  }
+  function openThread(id) {
+    activeId = id; expanded.add(id); saveExp(); document.body.classList.remove('nocp'); render();
+    const el = panel.querySelector('.th.active'); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  const hlClick = (e) => { try { const sel = doc().getSelection(); if (sel && !sel.isCollapsed) return; } catch (x) {} const id = hlAt(e); if (id) openThread(id); };
+  const hlMove = (e) => { try { doc().body.style.cursor = hlAt(e) ? 'pointer' : ''; } catch (x) {} };
 
   // ---- panel
   function markReview() {
@@ -1044,25 +1111,43 @@ init();
       ss.forEach((f) => { const hit = S.files.find((x) => base(x.path) === base(f)); const el = hit && document.querySelector('#slideList .item[data-path="' + hit.path + '"]'); if (el) el.classList.add('review'); });
     });
   }
+  // message text: "- " lines become a bulleted list, "1. " lines a numbered list, a line ending in ":" is a lead-in
+  const fmtMsg = (t) => {
+    const out = []; let list = null;
+    const flush = () => { if (list) { out.push('<' + list.t + ' class="bl">' + list.items.map((x) => '<li>' + esc(x) + '</li>').join('') + '</' + list.t + '>'); list = null; } };
+    let code = null;
+    String(t || '').split('\n').forEach((ln) => {
+      let m;
+      if (/^\s*```/.test(ln)) { if (code) { out.push('<pre class="code">' + esc(code.join('\n')) + '</pre>'); code = null; } else { flush(); code = []; } return; }
+      if (code) { code.push(ln); return; }
+      if ((m = ln.match(/^\s*[-*]\s+(.*)$/))) { if (!list || list.t !== 'ul') { flush(); list = { t: 'ul', items: [] }; } list.items.push(m[1]); }
+      else if ((m = ln.match(/^\s*\d+[.)]\s+(.*)$/))) { if (!list || list.t !== 'ol') { flush(); list = { t: 'ol', items: [] }; } list.items.push(m[1]); }
+      else if (!ln.trim()) flush();
+      else { flush(); out.push('<p class="' + (/:\s*$/.test(ln) ? 'lead' : 'para') + '">' + esc(ln) + '</p>'); }
+    });
+    if (code) out.push('<pre class="code">' + esc(code.join('\n')) + '</pre>');
+    flush(); return out.join('');
+  };
   window.__renderComments = () => render();
   function render() {
     const keep = panel.scrollTop, a = document.activeElement;
     const foc = a && a.dataset && a.dataset.reply ? { id: a.dataset.reply, s: a.selectionStart } : null;
     // solo mode: an open comment without @claude is a private note, not a request
-    const asked = (c) => !window.__solo || /@claude/i.test(c.comment || '') || (c.thread || []).some((m) => m.from === 'you' && /@claude/i.test(m.text || ''));
+    const asked = (c) => !window.__solo || ctOf(c) === 'comment' || /@claude/i.test(c.comment || '') || (c.thread || []).some((m) => m.from === 'you' && /@claude/i.test(m.text || ''));
     const cnt = (k) => comments.filter((c) => c.status === k).length, nrev = cnt('changed'), nopen = comments.filter((c) => c.status === 'open' && asked(c)).length, nnote = comments.filter((c) => c.status === 'open' && !asked(c)).length, ndone = cnt('addressed');
-    let h = '<h2>Comments</h2><div class="sum">' + (nrev ? '<span class="y">' + nrev + ' to review</span>' : '') + (nopen ? '<span>' + nopen + ' waiting on Claude</span>' : '') + (nnote ? '<span>' + nnote + (nnote === 1 ? ' note' : ' notes') + '</span>' : '') + (ndone ? '<span>' + ndone + ' resolved</span>' : '') + '</div>'
+    let h = '<h2>Comments</h2><div class="sum">' + (nrev ? '<span class="y">' + nrev + ' to review</span>' : '') + (nopen ? '<span>' + nopen + ' waiting on Claude</span>' : '') + (ndone ? '<span>' + ndone + ' resolved</span>' : '') + '</div>'
       + '<div class="st">' + esc(statusMsg) + '</div>'
+      + (window.__solo ? '<div class="tf">' + [['all', 'All', comments.filter((c) => c.status !== 'archived').length], ['comment', 'Comments', comments.filter((c) => c.status !== 'archived' && ctOf(c) === 'comment').length], ['note', 'Notes', comments.filter((c) => c.status !== 'archived' && ctOf(c) === 'note').length]].map((t) => '<button data-a="tf" data-t="' + t[0] + '" class="' + (typeFilter === t[0] ? 'on' : '') + '">' + t[1] + ' ' + t[2] + '</button>').join('') + '</div>' : '')
       + '<div class="row"><button data-a="newc">Add comment (C)</button><button data-a="exp">Expand all</button><button data-a="col">Collapse all</button>' + (nrev ? '<button data-a="closerev">' + (confirmKey === 'closerev' ? 'Click again to close ' + nrev : 'Close all to review (' + nrev + ')') + '</button>' : '') + (ndone ? '<button data-a="clearres">' + (confirmKey === 'clearres' ? 'Click again to clear ' + ndone : 'Clear resolved (' + ndone + ')') + '</button>' : '') + (nrev + nopen ? '<button data-a="resall">' + (resConfirm ? 'Click again to resolve ' + (nrev + nopen) : 'Resolve all') + '</button>' : '') + (nrev ? '<button data-a="prev">↑</button><button data-a="next">↓</button>' : '') + '<label><input type="checkbox" id="chr" ' + (hideRes ? 'checked' : '') + '> hide resolved</label></div>';
     const idx = (f) => S.files.findIndex((x) => base(x.path) === base(f));
-    const order = comments.slice().sort((x, y) => idx(x.slide) - idx(y.slide) || String(x.at).localeCompare(String(y.at))).filter((c) => c.status !== 'archived' && !(hideRes && c.status === 'addressed'));
+    const order = comments.slice().sort((x, y) => idx(x.slide) - idx(y.slide) || String(x.at).localeCompare(String(y.at))).filter((c) => c.status !== 'archived' && !(hideRes && c.status === 'addressed') && (!window.__solo || typeFilter === 'all' || ctOf(c) === typeFilter));
     if (!order.length) h += '<div class="more">' + (comments.length ? 'All threads resolved.' : 'No comments yet. Select text or an element and press C.') + '</div>';
     order.forEach((c) => {
-      const open = expanded.has(c.id), res = c.status === 'addressed', lab = { open: asked(c) ? 'Waiting on Claude' : 'Note', changed: 'To review', addressed: 'Resolved' }[c.status];
+      const open = expanded.has(c.id), res = c.status === 'addressed', lab = { open: !asked(c) ? '' : (window.__solo && (c.thread || []).length && c.thread[c.thread.length - 1].from === 'claude' ? 'Answered' : 'Waiting on Claude'), changed: 'To review', addressed: 'Resolved' }[c.status], ct = ctOf(c);
       const msgs = [{ from: 'you', text: c.comment, at: c.at }, ...(c.thread || [])];
-      h += '<div class="th' + (c.id === activeId ? ' active' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '"><div class="hd"><button data-a="tg">' + (open ? '▾' : '▸') + '</button><span class="chip ' + c.status + '">' + lab + '</span><span class="sec">' + esc(label(c.slide)) + '</span>' + (res ? '<button data-a="reopen">Reopen</button>' : '<button data-a="resolve">Resolve</button>') + '</div>' + (c.quote ? '<div class="cq">' + esc(c.quote) + '</div>' : '');
+      h += '<div class="th' + (c.id === activeId ? ' active' : '') + '" data-id="' + c.id + '" data-status="' + c.status + '"><div class="hd"><button data-a="tg">' + (open ? '▾' : '▸') + '</button>' + (lab ? '<span class="chip ' + c.status + '">' + lab + '</span>' : '') + (window.__solo ? '<button class="tchip ' + ct + '" data-a="ctype" title="Click to change type">' + (ct === 'note' ? 'Note' : 'Comment') + '</button>' : '') + '<span class="sec">' + esc(label(c.slide)) + '</span>' + (res ? '<button data-a="reopen">Reopen</button>' : '<button data-a="resolve">Resolve</button>') + '</div>' + (c.quote ? '<div class="cq">' + esc(c.quote) + '</div>' : '');
       if (open) {
-        msgs.forEach((m) => { h += '<div class="m ' + (m.from === 'claude' ? 'claude' + (m.kind === 'change' ? ' change' : '') : '') + '"><div class="mh">' + (m.from === 'claude' ? (m.kind === 'change' ? 'Claude · changed' : 'Claude') : 'You') + ' · ' + fmt(m.at) + '</div><div class="mt">' + esc(m.text) + '</div></div>'; });
+        msgs.forEach((m) => { h += '<div class="m ' + (m.from === 'claude' ? 'claude' + (m.kind === 'change' ? ' change' : '') : '') + '"><div class="mh">' + (m.from === 'claude' ? (m.kind === 'change' ? 'Claude · changed' : 'Claude') : 'You') + ' · ' + fmt(m.at) + '</div><div class="mt">' + fmtMsg(m.text) + '</div></div>'; });
         h += '<textarea class="r" data-reply="' + c.id + '" rows="1" placeholder="Reply… (⌘↵ to send)"></textarea><div class="cb"><button data-a="send">Reply</button><button data-a="mic" data-mic="' + c.id + '">🎤 Dictate</button>' + (c.slide ? '<button data-a="go">Go to slide</button>' : '') + '</div>';
       } else {
         const l = msgs[msgs.length - 1], t = (l.text || '').replace(/\s+/g, ' ');
@@ -1073,7 +1158,7 @@ init();
     panel.innerHTML = h; panel.scrollTop = keep;
     panel.querySelectorAll('textarea.r').forEach((t) => { if (drafts[t.dataset.reply]) t.value = drafts[t.dataset.reply]; });
     if (foc) { const t = panel.querySelector('textarea.r[data-reply="' + foc.id + '"]'); if (t) { t.focus({ preventScroll: true }); try { t.setSelectionRange(foc.s, foc.s); } catch (e) {} } }
-    markReview(); setMic();
+    markReview(); setMic(); refreshHighlights();
   }
   const post = (id, status) => fetch('/status', { method: 'POST', headers: hdr, body: JSON.stringify({ id, status }) }).then(load);
   function sendReply(id, text) {
@@ -1111,8 +1196,10 @@ init();
       const i = rv.findIndex((c) => c.id === activeId); const j = a === 'next' ? (i + 1) % rv.length : (i <= 0 ? rv.length - 1 : i - 1);
       activeId = rv[j].id; expanded.add(activeId); saveExp(); render(); go(rv[j]); return;
     }
+    if (a === 'tf') { typeFilter = e.target.closest('[data-t]').dataset.t; try { localStorage.setItem('redpen.tf', typeFilter); } catch (e2) {} render(); return; }
     const item = e.target.closest('.th'); if (!item) return;
     const id = item.dataset.id, c = comments.find((x) => x.id === id); if (!c) return;
+    if (a === 'ctype') { const nt = CTYPES[(CTYPES.indexOf(ctOf(c)) + 1) % CTYPES.length]; fetch('/ctype', { method: 'POST', headers: hdr, body: JSON.stringify({ id, ctype: nt }) }).then(load); return; }
     if (a === 'tg') { expanded.has(id) ? expanded.delete(id) : expanded.add(id); saveExp(); render(); return; }
     if (a === 'resolve') { post(id, 'addressed'); return; }
     if (a === 'reopen') { expanded.add(id); saveExp(); post(id, 'open'); return; }

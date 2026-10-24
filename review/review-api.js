@@ -69,7 +69,7 @@ exports.create = function create({ deck, port }) {
   }, 400).unref();
 
   function handle(q, r, u) {
-    const routes = ['/comment', '/reply', '/status', '/transcribe', '/comments', '/events'];
+    const routes = ['/solo', '/comment', '/reply', '/status', '/transcribe', '/comments', '/events'];
     if (!routes.includes(u)) return false;
     (async () => {
       try {
@@ -109,6 +109,7 @@ exports.create = function create({ deck, port }) {
           const j = await up.json(); if (!up.ok) throw new Error((j.error && j.error.message) || 'openai ' + up.status);
           return json(r, 200, { text: j.text || '' });
         }
+        if (u === '/solo') return json(r, 200, { solo: fs.existsSync(path.join(revDir, 'solo')) });
         if (u === '/comments') return json(r, 200, readComments());
         if (u === '/events') {
           r.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });

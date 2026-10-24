@@ -27,11 +27,18 @@ def read():
         pass
     return out
 
+# Solo mode: if <project>/review/solo exists, comments are private notes. Only ones that mention @claude are printed.
+solo = os.path.exists(os.path.join(project, 'review', 'solo'))
+def wanted(c):
+    return (not solo) or '@claude' in c.get('comment', '').lower()
+
 seen = set(read())
 print('watching', path, flush=True)
 while True:
     for cid, c in read().items():
         if cid not in seen:
             seen.add(cid)
+            if not wanted(c):
+                continue
             print('NEW COMMENT', cid, '|', c.get('slide', ''), '| quote:', c.get('quote', '')[:200].replace('\n', ' '), '| comment:', c['comment'], flush=True)
     time.sleep(1)

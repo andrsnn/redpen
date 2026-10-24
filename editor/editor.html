@@ -68,6 +68,7 @@
   #notes .nh{touch-action:none;cursor:ns-resize;align-items:center;user-select:none;-webkit-user-select:none}
   #notesBtn{margin-left:auto;flex:none;touch-action:manipulation;background:#242a36;color:#cfd6e4;border:1px solid #3a4252;border-radius:999px;padding:5px 12px;font:600 11px -apple-system,BlinkMacSystemFont,Arial,sans-serif;letter-spacing:.04em;cursor:pointer}
   #stageWrap{position:relative}
+  body.docmode #canvas{overflow:auto;align-items:flex-start;padding:24px 0}
   #frame{display:block;border:0;background:#f4f5f7;transform-origin:top left}
 
   /* ── style bar ───────────────────────────── */
@@ -244,7 +245,7 @@ const S = {
 };
 const $ = (id) => document.getElementById(id);
 const frame = $('frame');
-const SLIDE_W = 1280, SLIDE_H = 720;
+const SLIDE_W = 1280; let SLIDE_H = 720;   // SLIDE_H grows for doc pages (see measurePage)
 const OVERRIDE_ID = '__ed_override';
 
 /* ───────────────────────── sidebar ───────────────────────── */
@@ -315,7 +316,13 @@ async function openSlide(path) {
   refreshList();
   fit();
 }
-frame.onload = () => { setupDoc(); loadNotes(); fit(); };
+function measurePage() {
+  let h = 720;
+  try { const d = frame.contentDocument; if (d.querySelector('meta[name="redpen-page"][content="doc"]')) { frame.height = 720; h = Math.max(720, d.documentElement.scrollHeight); } } catch (e) {}
+  SLIDE_H = h; frame.height = h;
+  document.body.classList.toggle('docmode', h > 720);
+}
+frame.onload = () => { measurePage(); setupDoc(); loadNotes(); fit(); };
 
 /* speaker notes live in the slide file, in a script element of type text/x-notes */
 function notesEl(create) {
@@ -729,7 +736,8 @@ document.querySelectorAll('#stylebar .sw').forEach((sw) => {
 function fit() {
   if (!S.fit) return;
   const c = $('canvas');
-  const s = Math.min((c.clientWidth - 48) / SLIDE_W, (c.clientHeight - 48) / SLIDE_H);
+  // doc pages (<meta name="redpen-page" content="doc">) are fitted by width only and scroll vertically
+  const s = SLIDE_H > 720 ? (c.clientWidth - 48) / SLIDE_W : Math.min((c.clientWidth - 48) / SLIDE_W, (c.clientHeight - 48) / SLIDE_H);
   setScale(Math.min(s, 1));
 }
 function setScale(s) {
@@ -986,7 +994,7 @@ init();
     e.preventDefault(); const body = inp.value.trim(); if (!body) return;
     const c = { id: 'comment-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), slide: target.slide, quote: target.quote, comment: (variantMode ? '[VARIANT REQUEST] ' : '') + body, at: new Date().toISOString() };
     dlg.close(); say('Sending…');
-    fetch('/comment', { method: 'POST', headers: hdr, body: JSON.stringify(c) }).then((r) => { if (!r.ok) throw 0; say(variantMode ? 'Variant request sent to Claude' : 'Comment sent to Claude'); activeId = c.id; load(); }).catch(() => say('Could not send the comment'));
+    fetch('/comment', { method: 'POST', headers: hdr, body: JSON.stringify(c) }).then((r) => { if (!r.ok) throw 0; say(variantMode ? 'Variant request sent to Claude' : (window.__solo && !/@claude/i.test(c.comment) ? 'Private note saved (add @claude to ask Claude)' : 'Comment sent to Claude')); activeId = c.id; load(); }).catch(() => say('Could not send the comment'));
   });
 
   // ---- panel
@@ -1192,6 +1200,7 @@ init();
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); present(); }
   });
 })();
+fetch('/solo').then((r) => r.json()).then((j) => { window.__solo = !!j.solo; }).catch(() => {});
 </script>
 </body>
 </html>

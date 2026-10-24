@@ -74,6 +74,22 @@ Open the repo in Claude Code, or another coding agent, and tell it:
 
 For each comment the agent makes the change and replies with `python3 review/respond.py projects/my-project <comment-id> changed "<what changed>" --change --slides 03`. The reply shows in the thread. Add `--review` to keep a thread open for you to check. To install it as a Claude Code skill, copy `skill/` to `~/.claude/skills/redpen/`.
 
+## Solo mode
+
+Review a page on your own first, then bring the agent in. Comments are private notes by default.
+
+```sh
+./solo.sh projects/my-project                         # starts the editor and creates review/solo
+python3 tools/export-comments.py projects/my-project | pbcopy   # your notes as markdown, grouped by page
+python3 tools/watch-comments.py projects/my-project   # in solo mode, prints only comments that contain @claude
+```
+
+Start a comment with `@claude` to ask the agent for a change or an answer. Comments from before you started (any with an id starting `orig-`, or archived) are left out of the export; `--all` includes them. Delete `review/solo` to go back to normal mode.
+
+## Doc pages
+
+A page can be a scrolling document instead of a fixed 1280×720 slide. Add `<meta name="redpen-page" content="doc">` to its `<head>` and let the `.slide` element grow with its content (no fixed height). The editor sizes the page to its content, fits it by width and scrolls it. Comments work as on any page. Export still assumes 720px.
+
 ## What to use it for
 
 ![Five uses](docs/uses.svg)

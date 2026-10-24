@@ -70,6 +70,9 @@
   #stageWrap{position:relative}
   body.docmode #canvas{overflow:auto;align-items:flex-start;padding:24px 0}
   body.docmode #help{display:none}
+  body.docmode #notes{display:none}
+  body.nosb #sidebar{display:none}
+  @media (min-width:1101px){ body.nocp #cpanel{display:none} }
   #frame{display:block;border:0;background:#f4f5f7;transform-origin:top left}
 
   /* ── style bar ───────────────────────────── */
@@ -124,7 +127,7 @@
   @media (max-width:1100px){
     #topbar{overflow-x:auto;gap:8px;padding:0 10px;-webkit-overflow-scrolling:touch}
     #topbar>*{flex:none}
-    #curfile,#vbar,#savedFlash{display:none}
+    #curfile,#vbar,#savedFlash,#btnSb,#btnCp{display:none}
     .navbtn{display:inline-block}
     #sidebar{position:fixed;top:52px;bottom:0;left:0;width:min(280px,80vw);z-index:20;transform:translateX(-102%);transition:transform .18s;box-shadow:6px 0 24px rgba(0,0,0,.5)}
     body.show-side #sidebar{transform:none}
@@ -179,6 +182,8 @@
   <div id="curfile">no slide loaded</div>
   <div id="vbar"></div>
   <div class="spacer"></div>
+  <button id="btnSb" title="Show or hide the page list">Pages</button>
+  <button id="btnCp" title="Show or hide the comments panel">Comments</button>
   <button class="navbtn" id="navSide">Slides</button>
   <button class="navbtn" id="navCmt">Comments</button>
   <span class="grp"><button id="zoomBtn" title="Toggle fit / 100%">Fit</button><button id="btnPrev" title="Previous slide (←)">←</button><button id="btnNext" title="Next slide (→)">→</button></span>
@@ -399,6 +404,7 @@ function injectOverride() {
     '[contenteditable]:focus{outline:2px solid #3563e3!important;outline-offset:3px!important;border-radius:4px}' +
     '.__sel{outline:2px dashed #3563e3!important;outline-offset:3px}' +
     '.__sel:hover{cursor:grab}' +
+    (d.querySelector('meta[name="redpen-page"][content="doc"]') ? '.slide > *{user-select:text!important;cursor:auto!important}.__sel{outline:none!important}' : '') +
     '__ED__';
   d.head.appendChild(st);
 }
@@ -449,7 +455,9 @@ function setupDoc() {
     tap.timer = setTimeout(() => { if (!obj || obj === S.selected) select(null); }, 340);
   }, { capture: true, passive: true });
 
+  const isDocPage = !!d.querySelector('meta[name="redpen-page"][content="doc"]');   // doc pages: text is for reading and commenting, not moving or editing
   d.addEventListener('click', (e) => {
+    if (isDocPage) return;
     const t = e.target;
     if (S.editing && !S.editing.contains(t)) commitEdit();
     if (lastType === 'touch') return;                         // touch is handled by the tap rules above
@@ -458,7 +466,7 @@ function setupDoc() {
   });
 
   d.addEventListener('dblclick', (e) => {
-    if (lastType === 'touch') return;
+    if (isDocPage || lastType === 'touch') return;
     let t = e.target;
     if (t.nodeType === 3) t = t.parentElement;
     if (!t || t === d.body || t === slide) return;
@@ -754,6 +762,19 @@ $('zoomBtn').onclick = (e) => {
   e.currentTarget.blur();
 };
 window.addEventListener('resize', () => { if (S.fit) fit(); });
+/* page list and comments panel: hide them for more room (remembered). Speaker notes are hidden on doc pages. */
+try { if (localStorage.getItem('redpen.nosb') === '1') document.body.classList.add('nosb'); } catch (e) {}
+try { if (localStorage.getItem('redpen.nocp') === '1') document.body.classList.add('nocp'); } catch (e) {}
+$('btnSb').onclick = (e) => {
+  const off = document.body.classList.toggle('nosb');
+  try { localStorage.setItem('redpen.nosb', off ? '1' : '0'); } catch (e2) {}
+  e.currentTarget.blur(); setTimeout(() => { if (S.fit) fit(); }, 0);
+};
+$('btnCp').onclick = (e) => {
+  const off = document.body.classList.toggle('nocp');
+  try { localStorage.setItem('redpen.nocp', off ? '1' : '0'); } catch (e2) {}
+  e.currentTarget.blur(); setTimeout(() => { if (S.fit) fit(); }, 0);
+};
 
 /* drawers on small screens */
 function toggleDrawer(cls, other) {
@@ -980,6 +1001,23 @@ init();
   }
   window.requestVariant = () => openDlg(true);
   window.requestComment = () => openDlg();
+  /* doc pages: a small Comment button appears next to highlighted text */
+  const cbtn = document.createElement('button');
+  cbtn.textContent = 'Comment'; cbtn.id = 'selComment';
+  cbtn.style.cssText = 'position:fixed;display:none;z-index:50;font:600 12px system-ui,sans-serif;padding:5px 10px;border-radius:6px;border:1px solid #526b8d;background:#18304c;color:#eaf2fc;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+  document.body.appendChild(cbtn);
+  cbtn.addEventListener('mousedown', (e) => e.preventDefault());   // keep the text selected
+  cbtn.addEventListener('click', () => { cbtn.style.display = 'none'; openDlg(); });
+  const showSelBtn = () => {
+    try {
+      const d = doc(), sel = d.getSelection();
+      if (!d.querySelector('meta[name="redpen-page"][content="doc"]') || !sel || sel.isCollapsed || !sel.toString().trim()) { cbtn.style.display = 'none'; return; }
+      const r = sel.getRangeAt(0).getBoundingClientRect(), f = frame.getBoundingClientRect(), k = S.scale || 1;
+      cbtn.style.left = Math.max(8, Math.min(window.innerWidth - 90, f.left + r.right * k + 6)) + 'px';
+      cbtn.style.top = Math.max(60, f.top + r.top * k - 34) + 'px';
+      cbtn.style.display = 'block';
+    } catch (e) { cbtn.style.display = 'none'; }
+  };
   const isTyping = (t) => t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
   const onKey = (e) => {
     if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'KeyM' || e.key.toLowerCase() === 'm') && !dlg.open) { e.preventDefault(); e.stopPropagation(); openDlg(false, true); return; }
@@ -987,7 +1025,7 @@ init();
     if ((e.key === 'v' || e.key === 'V') && !e.metaKey && !e.ctrlKey && !e.altKey && !dlg.open && !isTyping(e.target)) { e.preventDefault(); e.stopPropagation(); openDlg(true); }
   };
   window.addEventListener('keydown', onKey, true);
-  const hookFrame = () => { try { doc().addEventListener('keydown', onKey, true); } catch (e) {} };
+  const hookFrame = () => { try { doc().addEventListener('keydown', onKey, true); doc().addEventListener('mouseup', () => setTimeout(showSelBtn, 0)); doc().addEventListener('keyup', showSelBtn); doc().addEventListener('scroll', () => { cbtn.style.display = 'none'; }, true); } catch (e) {} };
   frame.addEventListener('load', hookFrame); hookFrame();
   byId('ccancel').onclick = () => dlg.close();
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); byId('cfrm').requestSubmit(); } });

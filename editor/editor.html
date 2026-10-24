@@ -1044,6 +1044,7 @@ init();
       ss.forEach((f) => { const hit = S.files.find((x) => base(x.path) === base(f)); const el = hit && document.querySelector('#slideList .item[data-path="' + hit.path + '"]'); if (el) el.classList.add('review'); });
     });
   }
+  window.__renderComments = () => render();
   function render() {
     const keep = panel.scrollTop, a = document.activeElement;
     const foc = a && a.dataset && a.dataset.reply ? { id: a.dataset.reply, s: a.selectionStart } : null;
@@ -1241,7 +1242,7 @@ init();
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); present(); }
   });
 })();
-fetch('/solo').then((r) => r.json()).then((j) => { window.__solo = !!j.solo; }).catch(() => {});
+fetch('/solo').then((r) => r.json()).then((j) => { window.__solo = !!j.solo; if (window.__renderComments) window.__renderComments(); }).catch(() => {});
 </script>
 </body>
 </html>
